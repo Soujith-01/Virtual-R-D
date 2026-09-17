@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Secrets - never commit real credentials
+# ---------------------------------------------------------------------------
+.env
+.env.local
+*.env
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Generated ML artifacts (rebuild with the training scripts - see README)
+backend/models/*.pkl
+backend/models/model_metadata.json
+backend/training/dataset.csv
+backend/rag/index/
+
+# Local SQLite history
+backend/data/*.db
+backend/data/*.db-journal
+
+# ---------------------------------------------------------------------------
+# Node / Vite
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+.vite/
+*.local
+
+# Verification output
+frontend/screenshots/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

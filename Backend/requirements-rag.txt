@@ -1,0 +1,11 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL retrieval stack for the Virtual R&D Lab RAG layer.
+#
+# Install with:  pip install -r requirements-rag.txt
+# Warning: PyTorch is ~2 GB. Without this file installed the RAG layer still
+# works using the built-in scikit-learn TF-IDF embedder + NumPy search.
+# ---------------------------------------------------------------------------
+sentence-transformers>=2.7
+faiss-cpu>=1.8
+# Optional: enables PDF ingestion into backend/rag/documents/
+pypdf>=4.2
