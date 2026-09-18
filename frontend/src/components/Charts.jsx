@@ -16,16 +16,16 @@ import { GlassCard, Pill, SectionTitle } from './ui'
 import { COMPONENT_COLORS, COMPONENT_LABELS, num } from '../lib/format'
 
 const AXIS = {
-  stroke: 'rgba(148, 163, 184, 0.35)',
-  tick: { fill: '#94a3b8', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' },
+  stroke: 'rgba(148, 163, 184, 0.45)',
+  tick: { fill: '#cbd5e1', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 },
   tickLine: false,
 }
-const GRID_COLOR = 'rgba(127, 243, 255, 0.08)'
+const GRID_COLOR = 'rgba(127, 243, 255, 0.1)'
 
 function DarkTooltip({ active, payload, label, unit = '' }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="glass-strong rounded-xl border border-cyan-500/20 bg-slate-950/95 px-3 py-2 text-[11px] shadow-2xl backdrop-blur-xl">
+    <div className="glass-strong rounded-xl border border-cyan-500/30 bg-slate-950/95 px-3.5 py-2.5 text-xs shadow-2xl backdrop-blur-xl">
       <div className="mono mb-1.5 font-semibold text-cyan-300 border-b border-white/10 pb-1">{label}</div>
       {payload.map((entry) => (
         <div key={entry.dataKey || entry.name} className="flex items-center justify-between gap-3 py-0.5 text-slate-200">
@@ -205,8 +205,8 @@ function DarkTooltipWithUncertainty({ active, payload, label, targetUnit = '%' }
   if (!active || !payload?.length) return null
   const item = payload[0]?.payload || {}
   return (
-    <div className="glass-strong rounded-xl border border-cyan-500/20 bg-slate-950/95 px-3 py-2 text-[11px] shadow-2xl backdrop-blur-xl">
-      <div className="mono mb-1 font-semibold text-cyan-300 border-b border-white/10 pb-1">{label}</div>
+    <div className="glass-strong rounded-xl border border-cyan-500/30 bg-slate-950/95 px-3.5 py-2.5 text-xs shadow-2xl backdrop-blur-xl">
+      <div className="mono mb-1.5 font-semibold text-cyan-300 border-b border-white/10 pb-1">{label}</div>
       <div className="space-y-1 text-slate-200">
         <div className="flex justify-between gap-4">
           <span className="text-slate-400">Predicted Target:</span>

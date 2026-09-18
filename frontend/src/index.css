@@ -239,9 +239,37 @@ body {
 
 .label-caps {
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.62rem;
-  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+/* ------------------------------------------------------------------ *
+ * Global High-Legibility & Accessibility Rules
+ * Ensure no text in any component is too small or unreadable
+ * ------------------------------------------------------------------ */
+.text-\[8px\],
+.text-\[9px\],
+.text-\[10px\],
+.text-\[11px\] {
+  font-size: 0.75rem !important; /* Minimum 12px for crisp readability */
+  line-height: 1.15rem !important;
+}
+
+.text-slate-500 {
+  color: #94a3b8 !important; /* Enhanced contrast for dark theme */
+}
+
+.text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.text-amber-200\/60,
+.text-amber-200\/70,
+.text-amber-200\/75,
+.text-amber-200\/80 {
+  color: #fef08a !important; /* Clear warning & disclaimer text */
 }
 
 .no-scrollbar::-webkit-scrollbar {
