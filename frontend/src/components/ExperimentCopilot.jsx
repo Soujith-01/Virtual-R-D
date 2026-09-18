@@ -259,11 +259,11 @@ export default function ExperimentCopilot({ context = {} }) {
               opacity: 1,
               y: 0,
               scale: 1,
-              height: isMinimized ? 'auto' : '620px',
+              height: isMinimized ? 'auto' : 'min(600px, calc(100vh - 5rem))',
             }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="fixed bottom-6 right-6 z-50 w-[95vw] sm:w-[440px] max-w-full rounded-2xl border border-cyan-500/30 bg-slate-950/90 shadow-2xl shadow-cyan-950/60 backdrop-blur-2xl flex flex-col overflow-hidden text-slate-100"
+            className="fixed bottom-6 right-6 z-50 w-[95vw] sm:w-[440px] max-w-full max-h-[calc(100vh-4rem)] rounded-2xl border border-cyan-500/30 bg-slate-950/95 shadow-2xl shadow-cyan-950/60 backdrop-blur-2xl flex flex-col overflow-hidden text-slate-100"
           >
             {/* Header */}
             <div className="relative border-b border-white/10 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-950/90 px-4 py-3 flex items-center justify-between">

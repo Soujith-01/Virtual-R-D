@@ -10,7 +10,7 @@ import Landing from './components/Landing'
 import ChooseExperiment from './components/ChooseExperiment'
 import Workspace from './components/Workspace'
 import ExperimentGrid from './components/ExperimentGrid'
-import { ScoreBreakdownChart, YieldComparisonChart } from './components/Charts'
+import { ObjectiveWeightsChart, OptimizationTraceChart, ScoreBreakdownChart, YieldComparisonChart } from './components/Charts'
 import VirtualReactor from './components/VirtualReactor'
 import ResearchReport from './components/ResearchReport'
 import PipelineOverlay from './components/PipelineOverlay'
@@ -753,9 +753,16 @@ export default function App() {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 predictionKey={predKey}
+                targetUnit={getTargetUnit(domainId)}
               />
               <ScoreBreakdownChart experiments={transformedExperiments} />
             </div>
+            {research?.research_objective?.weights && (
+              <div className="grid gap-5 xl:grid-cols-2">
+                <ObjectiveWeightsChart weights={research.research_objective.weights} />
+                {research?.search && <OptimizationTraceChart search={research.search} />}
+              </div>
+            )}
             <GlassCard className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
                 <div className="text-sm font-medium text-slate-100">

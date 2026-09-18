@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard, Button, Pill, ErrorBanner } from './ui'
 import * as api from '../api/client'
@@ -35,6 +35,24 @@ export default function ResearchPapers({
   const [summaryData, setSummaryData] = useState(null)
   const [summarizing, setSummarizing] = useState(false)
   const [savedIds, setSavedIds] = useState(new Set())
+
+  // Upload file state
+  const fileInputRef = useRef(null)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState(null)
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    authors: '',
+    year: new Date().getFullYear(),
+    abstract: '',
+    venue: 'Custom Research File',
+    doi: '',
+    source: 'Local Upload',
+    autoInject: true,
+  })
+  const [uploading, setUploading] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Load library on mount
   useEffect(() => {
@@ -141,6 +159,108 @@ export default function ResearchPapers({
     }
   }
 
+  /* -------------------------- File Upload Logic -------------------------- */
+
+  const formatFilenameToTitle = (filename) => {
+    const withoutExt = filename.replace(/\.[^/.]+$/, '')
+    return withoutExt
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim()
+  }
+
+  const handleFileSelect = (file) => {
+    if (!file) return
+    setUploadedFile(file)
+    const autoTitle = formatFilenameToTitle(file.name)
+
+    // Quick text preview extraction for text/json/markdown/csv
+    if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = (e.target?.result || '').slice(0, 1500)
+        setUploadForm({
+          title: autoTitle,
+          authors: 'Researcher Upload',
+          year: new Date().getFullYear(),
+          abstract: content || `Uploaded experimental data file: ${file.name}`,
+          venue: file.name.endsWith('.csv') ? 'Experimental CSV Dataset' : 'Custom Scientific Document',
+          doi: '',
+          source: 'User Upload',
+          autoInject: true,
+        })
+        setUploadModalOpen(true)
+      }
+      reader.readAsText(file)
+    } else {
+      // PDF or binary document
+      setUploadForm({
+        title: autoTitle,
+        authors: 'Researcher Upload',
+        year: new Date().getFullYear(),
+        abstract: `Uploaded research paper document: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Contains experimental protocols and literature reference data.`,
+        venue: 'PDF Research Document',
+        doi: '',
+        source: 'User Upload',
+        autoInject: true,
+      })
+      setUploadModalOpen(true)
+    }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleConfirmUpload = async () => {
+    if (!uploadForm.title.trim()) return
+    setUploading(true)
+    setError(null)
+    try {
+      const paperId = `user-doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+      const authorsArr = uploadForm.authors
+        .split(/[,;]+/)
+        .map((a) => a.trim())
+        .filter(Boolean)
+
+      const newPaper = {
+        paper_id: paperId,
+        title: uploadForm.title.trim(),
+        authors: authorsArr.length > 0 ? authorsArr : ['Researcher Upload'],
+        year: Number(uploadForm.year) || new Date().getFullYear(),
+        venue: uploadForm.venue || 'Custom Research File',
+        abstract: uploadForm.abstract.trim(),
+        doi: uploadForm.doi?.trim() || undefined,
+        source: 'User Uploaded File',
+        is_open_access: true,
+        file_name: uploadedFile?.name,
+        file_size_kb: uploadedFile ? Math.round(uploadedFile.size / 1024) : undefined,
+      }
+
+      await api.saveLibraryPaper(newPaper)
+      setSavedIds((prev) => new Set([...prev, paperId]))
+      await fetchLibrary()
+
+      if (uploadForm.autoInject && onTogglePaperInResearch) {
+        onTogglePaperInResearch(newPaper)
+      }
+
+      setUploadSuccess(`Successfully uploaded "${newPaper.title}" and saved to your research library!`)
+      setUploadModalOpen(false)
+      setTab('library')
+      setTimeout(() => setUploadSuccess(null), 5000)
+    } catch (err) {
+      console.error('Failed to upload file:', err)
+      setError(err.friendlyMessage || 'Failed to save uploaded file into research library.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const isPaperInResearch = (paperId) => {
     return activeResearchPapers.some((p) => (p.paper_id || p.id) === paperId)
   }
@@ -149,6 +269,20 @@ export default function ResearchPapers({
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
+      {/* Hidden File Input for instant upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.txt,.md,.json,.csv,.doc,.docx"
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handleFileSelect(e.target.files[0])
+            e.target.value = ''
+          }
+        }}
+        className="hidden"
+      />
+
       {/* ===== Header & Active Research Context Banner ===== */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-5">
         <div>
@@ -158,59 +292,100 @@ export default function ResearchPapers({
             <Pill variant="cyan" glow>Live Literature</Pill>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Search peer-reviewed scientific literature and inject verified knowledge directly into RAG and AI experiments.
+            Search peer-reviewed literature or upload your own research files to inject verified knowledge into RAG and AI experiments.
           </p>
         </div>
 
-        {activeCount > 0 ? (
-          <div className="flex items-center gap-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl px-4 py-2.5">
-            <div>
-              <div className="text-xs font-semibold text-cyan-300">
-                ✓ {activeCount} Paper{activeCount > 1 ? 's' : ''} in Research Context
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="primary"
+            onClick={() => fileInputRef.current?.click()}
+            className="!py-2 !px-4 text-xs font-semibold shadow-lg shadow-cyan-500/20 border-cyan-400/40"
+            id="btn-upload-research-file"
+          >
+            📤 Upload Research File
+          </Button>
+
+          {activeCount > 0 ? (
+            <div className="flex items-center gap-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl px-4 py-2">
+              <div>
+                <div className="text-xs font-semibold text-cyan-300">
+                  ✓ {activeCount} Paper{activeCount > 1 ? 's' : ''} in Research Context
+                </div>
+                <div className="text-[10px] text-slate-400">Available to RAG & AI model</div>
               </div>
-              <div className="text-[11px] text-slate-400">Available to RAG & experiment scoring</div>
+              {onNavigateToWorkspace && (
+                <Button variant="secondary" size="sm" onClick={onNavigateToWorkspace}>
+                  Workspace →
+                </Button>
+              )}
             </div>
-            {onNavigateToWorkspace && (
-              <Button variant="primary" size="sm" onClick={onNavigateToWorkspace}>
-                Go to Workspace →
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="text-xs text-slate-400 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2">
-            Tip: Click <span className="text-cyan-400 font-medium">Use in Research</span> to feed papers into the AI agent.
-          </div>
-        )}
+          ) : (
+            <div className="text-xs text-slate-400 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2">
+              Tip: Click <span className="text-cyan-400 font-medium">Use in Research</span> to ground AI in papers.
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ===== Tab Navigation ===== */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+      {uploadSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3.5 text-xs text-emerald-200 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 font-bold">✓</span>
+            <span>{uploadSuccess}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUploadSuccess(null)}
+            className="text-emerald-400 hover:text-emerald-200 text-xs font-bold"
+          >
+            ✕
+          </button>
+        </motion.div>
+      )}
+
+      {/* ===== Tab Navigation + Quick Upload Action ===== */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTab('search')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              tab === 'search'
+                ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <span>🔍</span> Search Academic Papers
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('library')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              tab === 'library'
+                ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <span>📑</span> My Research Library
+            {libraryPapers.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono">
+                {libraryPapers.length}
+              </span>
+            )}
+          </button>
+        </div>
+
         <button
           type="button"
-          onClick={() => setTab('search')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === 'search'
-              ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-          }`}
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-cyan-400/40 bg-cyan-500/5 hover:bg-cyan-500/15 text-cyan-300 text-xs font-medium transition"
         >
-          <span>🔍</span> Search Academic Papers
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('library')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === 'library'
-              ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-          }`}
-        >
-          <span>📑</span> My Research Library
-          {libraryPapers.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono">
-              {libraryPapers.length}
-            </span>
-          )}
+          <span>➕</span> Add Local File (.pdf, .txt, .md, .csv)
         </button>
       </div>
 
@@ -293,11 +468,16 @@ export default function ResearchPapers({
               <div className="text-sm text-slate-400">Querying live scientific literature graph...</div>
             </div>
           ) : papers.length === 0 ? (
-            <GlassCard className="p-8 text-center text-slate-400 space-y-2">
+            <GlassCard className="p-8 text-center text-slate-400 space-y-3">
               <div className="text-3xl">🔍</div>
               <div className="text-base font-medium text-slate-300">No papers found for this query</div>
               <div className="text-xs text-slate-400">
-                Try broader keywords or click one of the quick topic buttons above.
+                Try broader keywords, click one of the quick topic buttons, or upload your own research file.
+              </div>
+              <div className="pt-2">
+                <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                  📤 Upload Research File Instead
+                </Button>
               </div>
             </GlassCard>
           ) : (
@@ -306,7 +486,8 @@ export default function ResearchPapers({
                 const inResearch = isPaperInResearch(paper.paper_id)
                 const isSaved = savedIds.has(paper.paper_id)
                 const authorsList = Array.isArray(paper.authors) ? paper.authors : []
-                const authorsDisplay = authorsList.slice(0, 3).join(', ') + (authorsList.length > 3 ? ` +${authorsList.length - 3} more` : '')
+                const authorsDisplay =
+                  authorsList.slice(0, 3).join(', ') + (authorsList.length > 3 ? ` +${authorsList.length - 3} more` : '')
 
                 return (
                   <GlassCard
@@ -423,7 +604,9 @@ export default function ResearchPapers({
                           <Button
                             variant={isSaved ? 'ghost' : 'secondary'}
                             size="sm"
-                            onClick={() => (isSaved ? handleDeleteFromLibrary(paper.paper_id) : handleSaveToLibrary(paper))}
+                            onClick={() =>
+                              isSaved ? handleDeleteFromLibrary(paper.paper_id) : handleSaveToLibrary(paper)
+                            }
                           >
                             {isSaved ? '✓ Saved' : 'Save'}
                           </Button>
@@ -449,9 +632,40 @@ export default function ResearchPapers({
       {/* ===== MY RESEARCH LIBRARY TAB ===== */}
       {tab === 'library' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
             <div>
-              <strong className="text-slate-200">MY RESEARCH LIBRARY</strong> · {libraryPapers.length} saved articles stored in SQLite
+              <strong className="text-slate-200">MY RESEARCH LIBRARY</strong> · {libraryPapers.length} saved articles &amp; uploaded files
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              📤 Upload File to Library
+            </Button>
+          </div>
+
+          {/* Drag and Drop Zone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDragging(true)
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition ${
+              isDragging
+                ? 'border-cyan-400 bg-cyan-950/40 text-cyan-200'
+                : 'border-white/15 bg-white/2 hover:border-cyan-400/40 hover:bg-white/5 text-slate-400'
+            }`}
+          >
+            <div className="text-2xl mb-1.5">📂</div>
+            <div className="text-xs font-semibold text-slate-200">
+              Drag &amp; Drop research files here, or click to browse
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              Supports PDF (.pdf), Text (.txt, .md), Datasets (.json, .csv), and Word documents (.docx)
             </div>
           </div>
 
@@ -462,7 +676,7 @@ export default function ResearchPapers({
               <div className="text-3xl">📑</div>
               <div className="text-base font-medium text-slate-300">Your library is currently empty</div>
               <div className="text-xs text-slate-400">
-                Search for papers above and click <span className="text-cyan-300">"Save"</span> to keep them here.
+                Upload your research files above or search academic papers to save them here.
               </div>
             </GlassCard>
           ) : (
@@ -470,20 +684,31 @@ export default function ResearchPapers({
               {libraryPapers.map((paper) => {
                 const inResearch = isPaperInResearch(paper.paper_id)
                 const authorsList = Array.isArray(paper.authors) ? paper.authors : []
+                const isCustomUpload = paper.source === 'User Upload' || paper.source === 'User Uploaded File' || paper.paper_id?.startsWith('user-doc-')
 
                 return (
-                  <GlassCard key={paper.paper_id} className="p-5 space-y-3">
+                  <GlassCard
+                    key={paper.paper_id}
+                    className={`p-5 space-y-3 transition ${
+                      inResearch ? 'border-cyan-400/40 bg-cyan-950/20' : ''
+                    }`}
+                  >
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
+                        {isCustomUpload ? (
+                          <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 font-semibold text-[11px]">
+                            📄 Uploaded File
+                          </span>
+                        ) : null}
                         {paper.year && (
                           <span className="px-2 py-0.5 rounded bg-white/10 text-slate-200 font-mono">
                             {paper.year}
                           </span>
                         )}
                         {paper.venue && <span className="text-slate-400 italic">{paper.venue}</span>}
-                        {paper.citation_count !== undefined && (
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono">
-                            {paper.citation_count} citations
+                        {paper.file_size_kb && (
+                          <span className="text-slate-500 font-mono text-[11px]">
+                            {paper.file_size_kb} KB
                           </span>
                         )}
                       </div>
@@ -521,7 +746,7 @@ export default function ResearchPapers({
                           size="sm"
                           onClick={() => handleSummarize(paper)}
                         >
-                          Summarize Paper
+                          Summarize Document
                         </Button>
                         {(paper.url || paper.open_access_pdf || paper.doi) && (
                           <a
@@ -530,7 +755,7 @@ export default function ResearchPapers({
                             rel="noreferrer"
                             className="text-xs text-slate-300 hover:text-cyan-300 px-3 py-1.5 rounded-lg border border-white/10 transition"
                           >
-                            Open Paper ↗
+                            Open Source ↗
                           </a>
                         )}
                       </div>
@@ -559,6 +784,131 @@ export default function ResearchPapers({
           )}
         </div>
       )}
+
+      {/* ===== UPLOAD FILE MODAL ===== */}
+      <AnimatePresence>
+        {uploadModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-lg">
+                    📤
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Upload Research Document</h3>
+                    <p className="text-xs text-slate-400">
+                      File: <span className="text-cyan-300 font-mono">{uploadedFile?.name}</span> (
+                      {uploadedFile ? (uploadedFile.size / 1024).toFixed(1) : 0} KB)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUploadModalOpen(false)}
+                  className="text-slate-400 hover:text-white text-lg p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Document / Article Title <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                    placeholder="Enter document title..."
+                    className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Authors / Contributors</label>
+                    <input
+                      type="text"
+                      value={uploadForm.authors}
+                      onChange={(e) => setUploadForm({ ...uploadForm, authors: e.target.value })}
+                      placeholder="e.g. Mele F., Barezzi M."
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Year</label>
+                    <input
+                      type="number"
+                      value={uploadForm.year}
+                      onChange={(e) => setUploadForm({ ...uploadForm, year: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Document Category / Venue</label>
+                  <input
+                    type="text"
+                    value={uploadForm.venue}
+                    onChange={(e) => setUploadForm({ ...uploadForm, venue: e.target.value })}
+                    placeholder="e.g. Lab Notebook, Experimental Data, Published Manuscript"
+                    className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Abstract / Key Findings Excerpt
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={uploadForm.abstract}
+                    onChange={(e) => setUploadForm({ ...uploadForm, abstract: e.target.value })}
+                    placeholder="Enter summary, methodology, chemical parameters, or key results..."
+                    className="w-full bg-slate-950 border border-white/15 rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 leading-relaxed font-sans"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    id="chk-auto-inject"
+                    type="checkbox"
+                    checked={uploadForm.autoInject}
+                    onChange={(e) => setUploadForm({ ...uploadForm, autoInject: e.target.checked })}
+                    className="rounded border-white/20 bg-slate-950 text-cyan-500 focus:ring-cyan-400 h-4 w-4"
+                  />
+                  <label htmlFor="chk-auto-inject" className="text-slate-300 cursor-pointer">
+                    Immediately add to <strong>Active Research Context</strong> for RAG reasoning
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <Button variant="secondary" size="sm" onClick={() => setUploadModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={uploading}
+                  disabled={!uploadForm.title.trim()}
+                  onClick={handleConfirmUpload}
+                >
+                  Confirm &amp; Add to Library →
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ===== DETAILS MODAL ===== */}
       <AnimatePresence>

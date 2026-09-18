@@ -1,28 +1,39 @@
 import { motion } from 'framer-motion'
 import { Button, GlassCard, Pill, SectionTitle } from './ui'
-import { PIPELINE_STEPS } from '../lib/constants'
 import { num } from '../lib/format'
+
+const WORKFLOW_STAGES = [
+  { step: '01', title: 'Research Goal', icon: '🎯', desc: 'Multi-objective parsing' },
+  { step: '02', title: 'Knowledge', icon: '📚', desc: 'RAG & paper literature' },
+  { step: '03', title: 'AI Hypothesis', icon: '💡', desc: 'Design space sampling' },
+  { step: '04', title: 'Experiment', icon: '🧪', desc: 'Candidate condition shortlist' },
+  { step: '05', title: 'Prediction', icon: '🌲', desc: 'Surrogate model inference' },
+  { step: '06', title: 'Simulation', icon: '⚗️', desc: 'Virtual reactor execution' },
+  { step: '07', title: 'Optimization', icon: '⚡', desc: 'Neighborhood search' },
+  { step: '08', title: 'Human Review', icon: '👨‍🔬', desc: 'Scientist audit & approval' },
+  { step: '09', title: 'Next Trial', icon: '🧭', desc: 'Active learning probe' },
+]
 
 const FEATURES = [
   {
     icon: '🧠',
-    title: 'Grounded knowledge retrieval',
-    body: 'Sentence-level retrieval over a process-chemistry knowledge base, so explanations cite the source notes they actually used.',
+    title: 'Grounded Knowledge Retrieval',
+    body: 'Sentence-level RAG retrieval over process chemistry & peer-reviewed research papers. Exposes transparent source citations.',
   },
   {
     icon: '🌲',
-    title: 'Trained surrogate model',
-    body: 'A Random Forest regressor predicts reaction yield with a measured error bar, replacing guesswork with a ranked hypothesis.',
+    title: 'Trained Surrogate Model',
+    body: 'Trained Random Forest regressors predict outcomes with empirical error bars, replacing guesswork with ranked hypotheses.',
   },
   {
     icon: '⚖️',
-    title: 'Transparent ranking',
-    body: 'Never yield-only. A visible weighted score over yield, time, temperature, pressure and a risk penalty - every weight open to challenge.',
+    title: 'Multi-Objective Ranking',
+    body: 'Transparent weighted scores balancing target yields, operational time, temperature, pressure, and calibrated safety penalties.',
   },
   {
     icon: '🔬',
-    title: 'Virtual experiment',
-    body: 'A staged reactor simulation previews how the recommended run behaves before anyone books bench time.',
+    title: 'Virtual Reactor Simulation',
+    body: 'Staged dynamic simulation previews chemical kinetics, thermodynamic curves, and sensor telemetry before booking bench time.',
   },
 ]
 
@@ -30,192 +41,256 @@ export default function Landing({ onStartManual, onStartAI, onStart, onDemo, hea
   const metrics = health?.model_metrics || {}
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 pb-16">
+    <div className="mx-auto max-w-[1500px] px-5 pb-16 space-y-8">
       {/* -------------------------------- hero -------------------------------- */}
-      <section className="relative grid items-center gap-10 py-14 lg:grid-cols-[1.15fr_0.85fr] lg:py-20">
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+      <section className="relative grid items-center gap-8 pt-8 pb-6 lg:grid-cols-[1.1fr_0.9fr] lg:pt-12">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone="cyan" dot>
-              Accelerating scientific discovery through AI-driven virtual experimentation
+              AI-Driven Virtual Experimentation Platform
             </Pill>
-            <Pill tone="slate">Reaction yield optimisation</Pill>
+            <Pill tone="slate">Decision Support System</Pill>
           </div>
 
-          <h1 className="mt-6 text-5xl font-bold leading-[1.03] tracking-tight text-slate-50 sm:text-6xl lg:text-7xl">
-            <span className="text-glow">NUCLEUS AI</span>
+          <h1 className="mt-4 text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
+            <span className="text-glow tracking-wide">NUCLEUS AI</span>
             <br />
-            <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
               R&amp;D LAB
             </span>
           </h1>
 
-          <p className="mt-5 max-w-xl text-lg text-cyan-100/80">
-            AI-powered experimental discovery platform. Explore experimental possibilities before
-            committing to expensive real-world experiments.
+          <p className="mt-4 max-w-xl text-base text-cyan-100/90 leading-relaxed">
+            Accelerate experimental discovery through model-guided hypothesis generation, virtual reactor simulation,
+            and grounded scientific literature synthesis before committing to expensive physical bench runs.
           </p>
 
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
-            Choose your mode: design your own experiment manually, or let the AI agent generate and rank
-            candidate experiments for you.
-          </p>
+          {/* Compact Scientific Disclaimer */}
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-200/80 max-w-xl">
+            <span className="text-amber-400 shrink-0">⚠️</span>
+            <span>
+              <strong>Scientific prototype:</strong> Predictions are AI surrogate hypotheses for experimental prioritization, not certified physical bench measurements.
+            </span>
+          </div>
 
-          <p className="mt-4 max-w-lg text-[11px] leading-relaxed text-amber-200/70">
-            <strong className="font-semibold">Scientific disclaimer:</strong> the underlying dataset is
-            a simulated prototype (<span className="mono">synthetic_prototype_v1</span>). Predictions
-            demonstrate the workflow and do not represent validated real-world chemistry.
-          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button onClick={onStartAI || onStart} className="!py-3 !px-6 text-sm" id="btn-hero-start-ai">
+              ✦ Launch AI Discovery
+            </Button>
+            <Button variant="ghost" onClick={onStartManual || onStart} className="!py-3 !px-6 text-sm" id="btn-hero-start-manual">
+              ✎ Manual Experiment
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={onDemo}
+              loading={loadingDemo}
+              className="!py-3 !px-4 text-sm"
+              id="btn-hero-demo"
+            >
+              ▶ Run Demo
+            </Button>
+          </div>
         </motion.div>
 
-        {/* right column: model + pipeline preview */}
+        {/* Right column: live model telemetry & stats */}
         <motion.div
-          initial={{ opacity: 0, y: 22 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.12 }}
-          className="space-y-4"
+          transition={{ duration: 0.55, delay: 0.1 }}
+          className="space-y-3"
         >
-          <GlassCard strong className="p-5">
-            <SectionTitle
-              eyebrow="Live model"
-              title={health?.model_loaded ? 'Surrogate model online' : 'Model not detected'}
-              description="Trained on the synthetic prototype dataset with a held-out test split and 5-fold cross-validation."
-            />
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <GlassCard strong className="p-5 border-cyan-500/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                  {health?.model_loaded ? 'Surrogate ML Model Online' : 'Model Standby'}
+                </h3>
+              </div>
+              <Pill tone="emerald">Active</Pill>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: 'R²', value: metrics.r2, digits: 3, tone: 'text-cyan-300' },
-                { label: 'MAE', value: metrics.mae, digits: 2, tone: 'text-sky-300' },
-                { label: 'RMSE', value: metrics.rmse, digits: 2, tone: 'text-violet-300' },
+                { label: 'R² Accuracy', value: metrics.r2, digits: 3, tone: 'text-cyan-300' },
+                { label: 'Mean Abs Error', value: metrics.mae, digits: 2, tone: 'text-sky-300' },
+                { label: 'Root MSE', value: metrics.rmse, digits: 2, tone: 'text-violet-300' },
                 {
-                  label: 'KB chunks',
+                  label: 'RAG Passages',
                   value: health?.knowledge_base?.chunks ?? 0,
                   digits: 0,
                   tone: 'text-emerald-300',
                 },
               ].map((item) => (
-                <div key={item.label} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2.5">
-                  <div className="label-caps text-slate-500">{item.label}</div>
-                  <div className={`mono mt-1 text-xl font-semibold ${item.tone}`}>
+                <div key={item.label} className="rounded-xl border border-white/5 bg-white/2 p-3">
+                  <div className="label-caps text-slate-500 text-[10px]">{item.label}</div>
+                  <div className={`mono mt-1 text-lg font-bold ${item.tone}`}>
                     {typeof item.value === 'number' ? num(item.value, item.digits) : '—'}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-400">
-              <Pill tone="slate">RandomForestRegressor</Pill>
-              <Pill tone="slate">5 features</Pill>
-              <Pill tone="slate">target: yield %</Pill>
-            </div>
-          </GlassCard>
 
-          <GlassCard className="p-5">
-            <SectionTitle eyebrow="Agent pipeline" title="What runs on every AI request" />
-            <ol className="mt-4 space-y-2">
-              {PIPELINE_STEPS.map((step, index) => (
-                <li key={step.key} className="flex items-start gap-3">
-                  <span className="mono mt-0.5 w-6 shrink-0 text-[11px] text-cyan-400/80">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="text-xs leading-relaxed text-slate-300">
-                    <span className="font-medium text-slate-200">{step.label}</span>
-                    <span className="text-slate-500"> — {step.detail}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
+            <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-slate-400 border-t border-white/5 pt-3">
+              <Pill tone="slate">RandomForestRegressor</Pill>
+              <Pill tone="slate">5 Scientific Domains</Pill>
+              <Pill tone="slate">Active Literature RAG</Pill>
+              <Pill tone="cyan">Multi-Objective Pareto</Pill>
+            </div>
           </GlassCard>
         </motion.div>
       </section>
 
-      {/* ─────────────────── mode selection ─────────────────── */}
-      <section className="mb-12">
+      {/* -------------------- Research Workflow Flowchart -------------------- */}
+      <section>
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.25 }}
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
         >
-          <div className="mb-5 text-center">
-            <div className="label-caps text-cyan-400/80">Choose your mode</div>
-            <h2 className="mt-1 text-2xl font-bold text-slate-100">How would you like to work?</h2>
+          <GlassCard strong className="p-5 border-cyan-500/20">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
+              <div>
+                <div className="label-caps text-cyan-400/80">Autonomous Closed-Loop Process</div>
+                <h2 className="text-base font-bold text-slate-100">End-to-End Scientific R&amp;D Workflow</h2>
+              </div>
+              <Pill tone="cyan" dot>9-Stage Discovery Architecture</Pill>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-9">
+              {WORKFLOW_STAGES.map((wf, idx) => (
+                <div
+                  key={wf.step}
+                  className="relative rounded-xl border border-white/5 bg-slate-900/60 p-3 text-center transition hover:border-cyan-400/30 hover:bg-slate-900/90"
+                >
+                  <div className="text-xl mb-1">{wf.icon}</div>
+                  <div className="mono text-[10px] font-semibold text-cyan-400">{wf.step}</div>
+                  <div className="text-xs font-bold text-slate-200 truncate">{wf.title}</div>
+                  <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">{wf.desc}</div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </motion.div>
+      </section>
+
+      {/* ─────────────────── Mode Selection ─────────────────── */}
+      <section>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="label-caps text-cyan-400/80">Experiment Modes</div>
+              <h2 className="text-lg font-bold text-slate-100">Choose Your Investigation Pathway</h2>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* Manual R&D card */}
+            {/* Manual R&D Card */}
             <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
               <GlassCard
                 hover
-                className="group relative h-full cursor-pointer overflow-hidden border border-cyan-300/20 p-7 transition-all hover:border-cyan-300/45"
+                className="group relative h-full cursor-pointer overflow-hidden border border-cyan-300/20 p-6 transition-all hover:border-cyan-300/40"
                 onClick={onStartManual || onStart}
               >
-                <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-cyan-400/8 blur-2xl transition group-hover:bg-cyan-400/15" />
-                <div className="relative">
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-400/10 text-xl">✎</span>
-                    <div>
-                      <div className="label-caps text-cyan-400/80">Mode 1</div>
-                      <div className="text-lg font-bold text-slate-100">Manual R&amp;D</div>
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-400/10 text-xl">✎</span>
+                      <div>
+                        <div className="label-caps text-cyan-400/80">Pathway 01</div>
+                        <h3 className="text-base font-bold text-slate-100">Manual Laboratory R&amp;D</h3>
+                      </div>
+                    </div>
+                    <Pill tone="cyan">Hands-On</Pill>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    Directly define target reaction parameters — temperature, pressure, catalyst selection, concentration, and run duration. Test virtually before booking physical equipment.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-300">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-cyan-400">✓</span> Custom Parameter Control
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-cyan-400">✓</span> Surrogate Model Prediction
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-cyan-400">✓</span> Staged Reactor Simulation
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-cyan-400">✓</span> Apparatus Instrumentation
                     </div>
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-400">
-                    Design your own experiment and test it virtually. You choose every parameter — the AI predicts the outcome and runs a staged virtual simulation.
-                  </p>
-                  <ul className="mt-4 space-y-1.5">
-                    {['You choose temperature, pressure, catalyst, concentration, time', 'AI model predicts yield', 'Virtual reactor simulation', 'Clear 4-step guided flow'].map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-xs text-slate-400">
-                        <span className="mt-0.5 text-cyan-400">▸</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-6">
-                    <Button onClick={onStartManual || onStart} className="w-full !py-3" id="btn-start-manual">
-                      Start Manual Experiment →
+
+                  <div className="pt-3">
+                    <Button onClick={onStartManual || onStart} className="w-full !py-2.5 text-xs font-semibold" id="btn-start-manual">
+                      Launch Manual Experiment →
                     </Button>
                   </div>
                 </div>
               </GlassCard>
             </motion.div>
 
-            {/* AI-Assisted R&D card */}
+            {/* AI-Assisted R&D Card */}
             <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
               <GlassCard
                 hover
-                className="group relative h-full cursor-pointer overflow-hidden border border-violet-300/20 p-7 transition-all hover:border-violet-300/40"
+                className="group relative h-full cursor-pointer overflow-hidden border border-indigo-400/20 p-6 transition-all hover:border-indigo-400/40"
                 onClick={onStartAI || onStart}
               >
-                <div className="absolute -left-8 -top-8 h-32 w-32 rounded-full bg-violet-400/8 blur-2xl transition group-hover:bg-violet-400/15" />
-                <div className="relative">
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-300/30 bg-violet-400/10 text-xl">✦</span>
-                    <div>
-                      <div className="label-caps text-violet-400/80">Mode 2</div>
-                      <div className="text-lg font-bold text-slate-100">AI-Assisted R&amp;D</div>
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-400/30 bg-indigo-500/10 text-xl">✦</span>
+                      <div>
+                        <div className="label-caps text-indigo-300/80">Pathway 02</div>
+                        <h3 className="text-base font-bold text-slate-100">AI-Guided Optimization</h3>
+                      </div>
+                    </div>
+                    <Pill tone="violet">Automated</Pill>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    State your research goal in natural language. The autonomous agent generates candidate shortlists, ranks trade-offs, retrieves peer-reviewed papers, and designs follow-up trials.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-300">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-indigo-400">✓</span> 5 Pre-Built Scientific Domains
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-indigo-400">✓</span> Multi-Objective Pareto Scoring
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-indigo-400">✓</span> RAG Literature Grounding
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-indigo-400">✓</span> Automated Next-Trial Probes
                     </div>
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-400">
-                    Let AI generate and rank promising experimental conditions. Choose from 5 domain
-                    templates (Reaction Yield, Solar, Plant, Battery, Water) or enter a custom objective.
-                  </p>
-                  <ul className="mt-4 space-y-1.5">
-                    {['AI generates candidate experiments', 'Ranked by a transparent scoring model', 'Knowledge base grounded explanations', 'Next experiment automatically suggested'].map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-xs text-slate-400">
-                        <span className="mt-0.5 text-violet-400">▸</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-6 flex gap-2">
+
+                  <div className="pt-3 flex gap-2">
                     <Button
                       variant="ghost"
                       onClick={onStartAI || onStart}
-                      className="flex-1 !py-3 !border-violet-300/25 !text-violet-100 hover:!bg-violet-400/10"
+                      className="flex-1 !py-2.5 !border-indigo-400/30 !text-indigo-200 hover:!bg-indigo-400/10 text-xs font-semibold"
                       id="btn-start-ai"
                     >
-                      Browse Experiment Templates →
+                      Browse Domains &amp; Templates →
                     </Button>
                     <Button
                       variant="ghost"
                       onClick={onDemo}
                       loading={loadingDemo}
-                      className="!py-3 !border-violet-300/15 !text-slate-400 hover:!bg-violet-400/5"
+                      className="!py-2.5 !px-4 !border-indigo-400/20 !text-slate-300 hover:!bg-indigo-400/5 text-xs font-semibold"
                       id="btn-run-demo"
                     >
                       ▶ Demo
@@ -228,20 +303,20 @@ export default function Landing({ onStartManual, onStartAI, onStart, onDemo, hea
         </motion.div>
       </section>
 
-      {/* ------------------------------ features ------------------------------ */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* ------------------------------ Features Grid ------------------------------ */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((feature, index) => (
           <motion.div
             key={feature.title}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: index * 0.07 }}
+            transition={{ duration: 0.35, delay: index * 0.05 }}
           >
-            <GlassCard hover className="h-full p-5">
-              <div className="text-xl">{feature.icon}</div>
-              <h3 className="mt-3 text-sm font-semibold text-slate-100">{feature.title}</h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{feature.body}</p>
+            <GlassCard hover className="h-full p-4 border-white/5">
+              <div className="text-lg">{feature.icon}</div>
+              <h3 className="mt-2 text-xs font-bold text-slate-100">{feature.title}</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{feature.body}</p>
             </GlassCard>
           </motion.div>
         ))}

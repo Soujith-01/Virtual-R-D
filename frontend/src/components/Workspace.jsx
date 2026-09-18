@@ -250,13 +250,22 @@ export default function Workspace({
                   </button>
                 )}
                 {onFindPapers && (
-                  <button
-                    type="button"
-                    onClick={() => onFindPapers(question)}
-                    className="text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 rounded-lg px-2.5 py-1 transition font-medium"
-                  >
-                    Find More Papers +
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onFindPapers(question)}
+                      className="text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 rounded-lg px-2.5 py-1 transition font-medium"
+                    >
+                      Find Papers +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onFindPapers('')}
+                      className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 rounded-lg px-2.5 py-1 transition font-medium"
+                    >
+                      📤 Upload File
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
