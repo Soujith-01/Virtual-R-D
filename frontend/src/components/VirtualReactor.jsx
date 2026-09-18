@@ -504,7 +504,7 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
         <SectionTitle
           eyebrow="Outcome"
           title={`Model prediction vs simulated result`}
-          description="The prediction came from the trained Random Forest model. The simulated value uses a separate surrogate inside the virtual experiment — the difference is informative, not an error."
+          description="The prediction came from the trained surrogate model. The simulated value uses a separate dynamic engine inside the virtual experiment — the difference is informative, not an error."
         />
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Object.entries(experiment).slice(0, 4).map(([key, value]) => (

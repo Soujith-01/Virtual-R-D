@@ -386,7 +386,7 @@ export function OptimizationTraceChart({ search }) {
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2 text-[11px] text-slate-400">
         <span className="font-semibold text-slate-300">Method:</span>
-        <span className="truncate max-w-md">{search.method || 'Random Forest surrogate + objective-weighted scoring'}</span>
+        <span className="truncate max-w-md">{search.method?.replace(/Random Forest/g, 'AI surrogate') || 'AI surrogate + objective-weighted scoring'}</span>
         {search.shortlist_size && (
           <span className="mono ml-auto text-cyan-300">Final shortlist: {search.shortlist_size}</span>
         )}

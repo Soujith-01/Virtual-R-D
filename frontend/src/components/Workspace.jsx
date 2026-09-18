@@ -163,7 +163,7 @@ export default function Workspace({
             {isCustom && (
               <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/85">
                 <strong className="text-amber-200">Note:</strong> Custom research uses the reaction yield
-                model (Random Forest, trained on synthetic_prototype_v1). Predictions are only valid for
+                surrogate model (trained on synthetic_prototype_v1). Predictions are only valid for
                 reaction-yield optimization — not for other scientific domains.
               </div>
             )}
@@ -539,7 +539,7 @@ export default function Workspace({
             description="What produced the numbers you are looking at."
           />
           <div className="mt-4 grid grid-cols-2 gap-4">
-            <KeyValue label="Regressor">Random Forest · 300 trees</KeyValue>
+            <KeyValue label="Surrogate Engine">AI Predictive Model</KeyValue>
             <KeyValue label="Target">{targetLabel}</KeyValue>
             <KeyValue label="Model domain">{template?.label || 'Reaction Yield'}</KeyValue>
             <KeyValue label="Data provenance">

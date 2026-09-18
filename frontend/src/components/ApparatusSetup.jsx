@@ -340,7 +340,7 @@ function extractApparatusFromPapers(papers = [], domainId = 'reaction-yield') {
         id: `lit-${paper.paper_id || paper.id}-ai`,
         name: 'Real-Time Surrogate Model Feedback Loop',
         category: 'Algorithmic Instrumentation',
-        specs: 'Automated data acquisition connected to Gaussian Process / Random Forest acquisition function.',
+        specs: 'Automated data acquisition connected to adaptive surrogate model acquisition function.',
         role: 'Dynamically updates parameter boundary recommendations between sequential runs.',
         paperTitle: paper.title,
         paperDoi: paper.doi,

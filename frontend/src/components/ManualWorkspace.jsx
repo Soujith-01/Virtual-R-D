@@ -337,7 +337,7 @@ function ReviewStep({ name, goal, params, prediction, predicting, predictError, 
             {predicting && (
               <div className="flex items-center gap-3 py-4 text-sm text-slate-400">
                 <Spinner />
-                Querying the Random Forest model…
+                Querying the predictive surrogate model…
               </div>
             )}
 
@@ -378,7 +378,7 @@ function ReviewStep({ name, goal, params, prediction, predicting, predictError, 
                   <Pill tone={confidenceTone(prediction.confidence)}>
                     Confidence {(prediction.confidence * 100).toFixed(0)}%
                   </Pill>
-                  <Pill tone="slate">Random Forest · 300 trees</Pill>
+                  <Pill tone="slate">AI Predictive Surrogate</Pill>
                 </div>
 
                 <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-100/80">
@@ -394,8 +394,8 @@ function ReviewStep({ name, goal, params, prediction, predicting, predictError, 
               <div className="label-caps text-slate-500 mb-2">Model Information</div>
               <div className="space-y-1 text-[11px] text-slate-400">
                 <div className="flex justify-between">
-                  <span>Algorithm</span>
-                  <span className="text-slate-300">Random Forest Regressor</span>
+                  <span>Surrogate Engine</span>
+                  <span className="text-slate-300">AI Predictive Model</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Training data</span>
@@ -612,8 +612,8 @@ function ResultStep({ name, goal, params, prediction, simulation, onRunAnother, 
           <div>
             <div className="label-caps text-slate-500 mb-2">Model Prediction</div>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Predicted using the trained <strong className="text-slate-100">Random Forest</strong> model
-              ({prediction?.model?.metrics ? `R² ${num(prediction.model.metrics.r2, 3)}` : '300 trees'}).
+              Predicted using the trained <strong className="text-slate-100">AI Surrogate</strong> model
+              ({prediction?.model?.metrics ? `R² ${num(prediction.model.metrics.r2, 3)}` : 'trained surrogate'}).
             </p>
           </div>
 

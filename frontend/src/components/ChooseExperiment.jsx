@@ -59,7 +59,7 @@ function ModelPanel({ template, onClose }) {
 
         <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-[11px] leading-relaxed text-cyan-100/85">
           <strong className="text-cyan-200">How it works:</strong>{" "}
-          Each domain has its own trained Random Forest model. The AI generates candidate experiments,{" "}
+          Each domain has its own trained predictive surrogate model. The AI generates candidate experiments,{" "}
           predicts outcomes using the domain-specific model, and ranks them by your research objective.
         </div>
 
@@ -222,7 +222,7 @@ export default function ChooseExperiment({ onSelect, onBack, onFindPapers }) {
               </p>
               <p className="mt-3 text-[11px] leading-relaxed text-cyan-200/70">
                 <strong>All domains below use trained ML models:</strong> Each has its own
-                RandomForestRegressor trained on synthetic prototype data for demonstration.
+                predictive surrogate engine trained on synthetic prototype data for demonstration.
               </p>
             </div>
             <Button variant="ghost" onClick={onBack} className="shrink-0 !py-2 text-xs">

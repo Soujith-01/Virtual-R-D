@@ -24,7 +24,7 @@ export default function ExperimentGrid({
         <SectionTitle
           eyebrow="Step 03"
           title="Candidate experiment dashboard"
-          description={`Every candidate was proposed by the model-guided search, predicted by the ${domain?.label || 'Random Forest'}, and scored against the objective. Nothing here is ranked on yield alone.`}
+          description={`Every candidate was proposed by the model-guided search, predicted by the ${domain?.label || 'AI surrogate model'}, and scored against the objective. Nothing here is ranked on yield alone.`}
           right={
             <div className="flex flex-wrap items-center gap-2">
               {search?.pool_evaluated && (

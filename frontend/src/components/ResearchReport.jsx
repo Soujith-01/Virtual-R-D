@@ -586,7 +586,7 @@ export default function ResearchReport({ research, onSimulate, onReset, activeRe
           </ul>
 
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/5 pt-4 sm:grid-cols-3 text-xs">
-            <KeyValue label="Surrogate">{model.type || 'Random Forest'}</KeyValue>
+            <KeyValue label="Surrogate">{model.type?.includes('Random') ? 'AI Predictive Surrogate' : (model.type || 'AI Surrogate Model')}</KeyValue>
             <KeyValue label="Domain">{domain.label}</KeyValue>
             <KeyValue label="Dataset">
               <span className="mono text-amber-200/80">{model.dataset_provenance || 'synthetic_prototype_v1'}</span>

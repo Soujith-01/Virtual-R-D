@@ -93,7 +93,7 @@ export function ModelPanel({ model, factorContributions }) {
       <SectionTitle
         eyebrow="Important factors"
         title="What the model actually relies on"
-        description="Grouped feature importance of the trained Random Forest, measured on the held-out test split."
+        description="Grouped feature importance of the trained surrogate model, measured on the held-out test split."
       />
 
       <div className="mt-4 space-y-2.5">

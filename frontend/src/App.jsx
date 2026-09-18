@@ -939,7 +939,7 @@ export default function App() {
               Nucleus AI R&D Lab · Multi-domain AI-powered experimental discovery · prototype for demonstration
             </span>
             <span className="mono">
-              Models: RandomForestRegressor · Data: synthetic_prototype_v1 · All domains model-backed
+              Surrogate Models: AI Predictive Engines · Data: synthetic_prototype_v1 · All domains model-backed
             </span>
           </div>
         </footer>

@@ -23,7 +23,7 @@ const FEATURES = [
   {
     icon: '🌲',
     title: 'Trained Surrogate Model',
-    body: 'Trained Random Forest regressors predict outcomes with empirical error bars, replacing guesswork with ranked hypotheses.',
+    body: 'Trained predictive surrogate models forecast outcomes with empirical error bars, replacing guesswork with ranked hypotheses.',
   },
   {
     icon: '⚖️',
@@ -132,7 +132,7 @@ export default function Landing({ onStartManual, onStartAI, onStart, onDemo, hea
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-slate-400 border-t border-white/5 pt-3">
-              <Pill tone="slate">RandomForestRegressor</Pill>
+              <Pill tone="slate">AI Surrogate Engine</Pill>
               <Pill tone="slate">5 Scientific Domains</Pill>
               <Pill tone="slate">Active Literature RAG</Pill>
               <Pill tone="cyan">Multi-Objective Pareto</Pill>
