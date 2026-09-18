@@ -2,47 +2,140 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import * as api from './api/client'
-import { DEMO_QUESTION, PIPELINE_STEPS } from './lib/constants'
+import { DEMO_QUESTION, PIPELINE_STEPS, DOMAINS } from './lib/constants'
+import { getPredictionKey, getTargetLabel, getTargetUnit, paramValue } from './lib/format'
 
 import Sidebar from './components/Sidebar'
 import Landing from './components/Landing'
 import ChooseExperiment from './components/ChooseExperiment'
 import Workspace from './components/Workspace'
-import ManualWorkspace from './components/ManualWorkspace'
 import ExperimentGrid from './components/ExperimentGrid'
 import { ScoreBreakdownChart, YieldComparisonChart } from './components/Charts'
 import VirtualReactor from './components/VirtualReactor'
 import ResearchReport from './components/ResearchReport'
 import PipelineOverlay from './components/PipelineOverlay'
 import RunHistory from './components/RunHistory'
+import ManualWorkspace from './components/ManualWorkspace'
+import ResearchPapers from './components/ResearchPapers'
+import ApparatusSetup from './components/ApparatusSetup'
 import { Button, ErrorBanner, GlassCard } from './components/ui'
 
-/** Keep only the five model inputs - the API rejects unknown fields. */
-const toParams = (experiment) => ({
-  temperature: Number(experiment.temperature),
-  pressure: Number(experiment.pressure),
-  catalyst: experiment.catalyst,
-  concentration: Number(experiment.concentration),
-  reaction_time: Number(experiment.reaction_time),
-})
+/** Convert hyphenated domain id (react router style) to underscore (backend style) */
+const toBackendDomain = (domainId) => (domainId || 'reaction-yield').replace(/-/g, '_')
+
+/** Keep only the domain-specific model inputs */
+const toParams = (experiment, domainId) => {
+  const params = {}
+  const domain = DOMAINS[domainId]
+
+  if (!domain) {
+    // Fallback to reaction yield params
+    return {
+      temperature: Number(experiment.temperature),
+      pressure: Number(experiment.pressure),
+      catalyst: experiment.catalyst,
+      concentration: Number(experiment.concentration),
+      reaction_time: Number(experiment.reaction_time),
+    }
+  }
+
+  for (const key of domain.featureKeys) {
+    if (key === 'catalyst') {
+      params[key] = experiment[key]
+    } else {
+      params[key] = Number(experiment[key])
+    }
+  }
+
+  return params
+}
+
+const getPredictionValue = (experiment, domainId) => {
+  const key = getPredictionKey(domainId)
+  return experiment[key]
+}
+
+const getTargetUnitForDomain = (domainId) => {
+  return getTargetUnit(domainId)
+}
+
+const STEP_TO_PATH = {
+  landing: '/',
+  papers: '/papers',
+  choose: '/choose',
+  workspace: '/workspace',
+  experiments: '/experiments',
+  apparatus: '/apparatus',
+  simulation: '/simulation',
+  report: '/report',
+}
+
+const PATH_TO_STEP = {
+  '/': 'landing',
+  '/papers': 'papers',
+  '/choose': 'choose',
+  '/workspace': 'workspace',
+  '/experiments': 'experiments',
+  '/apparatus': 'apparatus',
+  '/simulation': 'simulation',
+  '/report': 'report',
+}
 
 export default function App() {
+  const getInitialStep = () => {
+    if (typeof window === 'undefined') return 'landing'
+    const path = window.location.pathname.replace(/\/$/, '') || '/'
+    return PATH_TO_STEP[path] || 'landing'
+  }
+
   // step order (ai mode): landing → choose → workspace → experiments → simulation → report
-  // step order (manual mode): landing → workspace (ManualWorkspace)
-  const [step, setStep] = useState('landing')
+  const [step, _setStepState] = useState(getInitialStep)
   const [mode, setMode] = useState('ai')
+
+  const setStep = useCallback((newStep, pushHistory = true) => {
+    _setStepState(newStep)
+    if (typeof window !== 'undefined') {
+      const path = STEP_TO_PATH[newStep] || '/'
+      if (pushHistory && window.location.pathname !== path) {
+        window.history.pushState({ step: newStep }, '', path)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
+    const currentStep = PATH_TO_STEP[currentPath] || 'landing'
+    window.history.replaceState({ step: currentStep }, '', currentPath)
+
+    const handlePopState = (event) => {
+      const path = window.location.pathname.replace(/\/$/, '') || '/'
+      const targetStep = event.state?.step || PATH_TO_STEP[path] || 'landing'
+      _setStepState(targetStep)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Template selected from ChooseExperiment screen
   const [selectedTemplate, setSelectedTemplate] = useState(null)
 
   const [health, setHealth] = useState(null)
   const [designSpace, setDesignSpace] = useState(null)
+  const [modelStatus, setModelStatus] = useState(null)
   const [history, setHistory] = useState({ available: false, runs: [] })
 
   const [research, setResearch] = useState(null)
   const [simulation, setSimulation] = useState(null)
-  const [simulationTitle, setSimulationTitle] = useState('Virtual reactor')
+  const [simulationTitle, setSimulationTitle] = useState('Virtual experiment')
   const [selectedId, setSelectedId] = useState(null)
+  const [selectedExperimentForApparatus, setSelectedExperimentForApparatus] = useState(null)
+
+  // Research papers context
+  const [activeResearchPapers, setActiveResearchPapers] = useState([])
+  const [papersQuery, setPapersQuery] = useState('')
 
   const [question, setQuestion] = useState(DEMO_QUESTION)
   const [busy, setBusy] = useState(false)
@@ -58,9 +151,14 @@ export default function App() {
 
   const loadSystem = useCallback(async () => {
     try {
-      const [healthPayload, designPayload] = await Promise.all([api.getHealth(), api.getDesignSpace()])
+      const [healthPayload, designPayload, modelStatusPayload] = await Promise.all([
+        api.getHealth(),
+        api.getDesignSpace(),
+        api.getModelStatus ? api.getModelStatus() : Promise.resolve({ models: {} }),
+      ])
       setHealth(healthPayload)
       setDesignSpace(designPayload)
+      setModelStatus(modelStatusPayload)
       setError(null)
     } catch (error) {
       setError(error.friendlyMessage || 'Could not reach the backend.')
@@ -89,9 +187,37 @@ export default function App() {
     return id
   }
 
+  const handleTogglePaperInResearch = useCallback((paper) => {
+    const pId = paper.paper_id || paper.id
+    setActiveResearchPapers((prev) => {
+      const exists = prev.some((p) => (p.paper_id || p.id) === pId)
+      if (exists) {
+        return prev.filter((p) => (p.paper_id || p.id) !== pId)
+      }
+      return [...prev, paper]
+    })
+  }, [])
+
+  const handleFindPapers = useCallback((searchQuery) => {
+    if (searchQuery) {
+      // Synthesize clean search query keywords
+      const clean = searchQuery
+        .toLowerCase()
+        .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, ' ')
+        .replace(/\b(maximize|minimize|optimise|optimize|while|with|and|the|for|in|of|a|an|to)\b/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 6)
+        .join(' ')
+      setPapersQuery(clean ? `${clean} machine learning` : searchQuery)
+    }
+    setStep('papers')
+  }, [setStep])
+
   /* ------------------------------ pipeline ------------------------------ */
 
-  const runPipeline = async (objective, numExperiments = 5, constraints = null, { demo = false } = {}) => {
+  const runPipeline = async (objective, numExperiments = 5, constraints = null, { demo = false, domainId = 'reaction-yield' } = {}) => {
     clearDemoTimers()
     demoRef.current = demo
 
@@ -111,14 +237,19 @@ export default function App() {
     )
 
     try {
+      // Use domain-specific research endpoint or fallback to generic
+      const researchPayload = {
+        research_question: objective,
+        num_experiments: numExperiments,
+        constraints: constraints || undefined,
+        include_simulation: true,
+        include_comparison: true,
+        domain: toBackendDomain(domainId),
+        papers: activeResearchPapers.length > 0 ? activeResearchPapers : undefined,
+      }
+
       const [payload] = await Promise.all([
-        api.runResearch({
-          research_question: objective,
-          num_experiments: numExperiments,
-          constraints: constraints || undefined,
-          include_simulation: true,
-          include_comparison: true,
-        }),
+        api.runResearch(researchPayload),
         new Promise((resolve) => setTimeout(resolve, 2700)),
       ])
 
@@ -128,7 +259,7 @@ export default function App() {
       setStep('experiments')
       api.getHistory(9).then(setHistory).catch(() => {})
 
-      if (demo) later(() => simulateFor(payload.recommended_experiment, payload.simulation), 1900)
+      if (demo) later(() => simulateFor(payload.recommended_experiment, payload.simulation, domainId), 1900)
     } catch (error) {
       setError(error.friendlyMessage || 'The research pipeline failed.')
       setStep('workspace')
@@ -141,15 +272,17 @@ export default function App() {
 
   /* ------------------------------ simulation ------------------------------ */
 
-  const simulateFor = async (experiment, presetSimulation = null) => {
+  const simulateFor = async (experiment, presetSimulation = null, domainId = 'reaction-yield') => {
     if (!experiment) return
     clearDemoTimers()
 
     setSelectedId(experiment.id ?? selectedId)
+
+    const domain = DOMAINS[domainId] || DOMAINS['reaction-yield']
     setSimulationTitle(
       experiment.id?.startsWith('NEXT')
-        ? 'Virtual reactor · next suggested experiment'
-        : `Virtual reactor · ${experiment.id ?? 'custom experiment'}`,
+        ? `${domain.label} · virtual experiment · next suggested`
+        : `${domain.label} · virtual experiment · ${experiment.id ?? 'custom'}`,
     )
 
     const isRecommended = presetSimulation && research?.recommended_experiment?.id === experiment.id
@@ -162,7 +295,11 @@ export default function App() {
     setSimulating(true)
     setError(null)
     try {
-      const payload = await api.simulate({ ...toParams(experiment), speed: 1 })
+      const payload = await api.simulate({
+        ...toParams(experiment, domainId),
+        speed: 1,
+        domain: toBackendDomain(domainId),
+      })
       setSimulation(payload)
       setStep('simulation')
     } catch (error) {
@@ -184,6 +321,7 @@ export default function App() {
     setResearch(null)
     setSimulation(null)
     setSelectedId(null)
+    setSelectedExperimentForApparatus(null)
     setSelectedTemplate(null)
     setError(null)
     setStep('landing')
@@ -219,7 +357,7 @@ export default function App() {
 
   const startAI = () => {
     setMode('ai')
-    setStep('choose')          // AI mode now starts at Choose Experiment
+    setStep('choose')
     setSelectedTemplate(null)
     setError(null)
   }
@@ -247,9 +385,23 @@ export default function App() {
           onStartManual={startManual}
           onStartAI={startAI}
           onStart={() => startAI()}
-          onDemo={() => runPipeline(DEMO_QUESTION, 5, null, { demo: true })}
+          onDemo={() => runPipeline(DEMO_QUESTION, 5, null, { demo: true, domainId: 'reaction-yield' })}
           loadingDemo={busy}
         />
+      )
+    }
+
+    if (step === 'papers') {
+      return (
+        <div className="mx-auto max-w-[1500px] px-5 pb-16">
+          <ResearchPapers
+            initialQuery={papersQuery}
+            activeResearchPapers={activeResearchPapers}
+            onTogglePaperInResearch={handleTogglePaperInResearch}
+            onNavigateToWorkspace={() => setStep('workspace')}
+            selectedTemplate={selectedTemplate}
+          />
+        </div>
       )
     }
 
@@ -258,14 +410,22 @@ export default function App() {
         <ChooseExperiment
           onSelect={handleTemplateSelect}
           onBack={reset}
+          onFindPapers={handleFindPapers}
         />
       )
     }
 
     if (step === 'workspace') {
       if (mode === 'manual') {
-        return <ManualWorkspace onSwitchToAI={switchToAIFromManual} />
+        return (
+          <div className="mx-auto max-w-[1500px] px-5 pb-16">
+            <ManualWorkspace onSwitchToAI={switchToAIFromManual} />
+          </div>
+        )
       }
+
+      const domainId = selectedTemplate?.id || 'reaction-yield'
+      const domain = DOMAINS[domainId] || DOMAINS['reaction-yield']
 
       return (
         <>
@@ -274,8 +434,12 @@ export default function App() {
             designSpace={designSpace}
             busy={busy}
             template={selectedTemplate}
-            onSubmit={(objective, count, constraints) => runPipeline(objective, count, constraints)}
-            onSimulate={(params) => simulateFor(params)}
+            domain={domain}
+            activeResearchPapers={activeResearchPapers}
+            onFindPapers={handleFindPapers}
+            onTogglePaperInResearch={handleTogglePaperInResearch}
+            onSubmit={(objective, count, constraints) => runPipeline(objective, count, constraints, { domainId })}
+            onSimulate={(params) => simulateFor(params, null, domainId)}
             onChooseTemplate={() => setStep('choose')}
           />
           <div className="mx-auto max-w-[1500px] px-5 pb-16">
@@ -286,37 +450,84 @@ export default function App() {
     }
 
     if (step === 'experiments') {
+      if (!research || !research.candidate_experiments || research.candidate_experiments.length === 0) {
+        return (
+          <div className="mx-auto max-w-[1500px] px-5 pb-16">
+            <GlassCard className="p-10 text-center max-w-xl mx-auto my-12 space-y-4">
+              <div className="text-4xl">📊</div>
+              <div className="text-lg font-semibold text-slate-100">No Candidate Experiments Yet</div>
+              <p className="text-xs leading-relaxed text-slate-400">
+                Run an AI research pipeline or pick an experiment domain from the workspace to generate candidate experiments.
+              </p>
+              <div className="flex justify-center gap-3 pt-2">
+                <Button onClick={() => setStep('choose')}>
+                  🔬 Choose Experiment Domain
+                </Button>
+                <Button variant="secondary" onClick={() => setStep('workspace')}>
+                  📝 Go to Workspace
+                </Button>
+              </div>
+            </GlassCard>
+          </div>
+        )
+      }
+
+      const domainId = selectedTemplate?.id || 'reaction-yield'
+      const domain = DOMAINS[domainId] || DOMAINS['reaction-yield']
+      const predKey = getPredictionKey(domainId)
+
+      // Transform experiments to use generic field names for the grid
+      const transformedExperiments = (research?.candidate_experiments || []).map(exp => ({
+        ...exp,
+        predicted_yield: exp[predKey] || exp.predicted_yield || 0,
+        predicted_efficiency: exp[predKey] || exp.predicted_efficiency || 0,
+        predicted_biomass_yield: exp[predKey] || exp.predicted_biomass_yield || 0,
+        predicted_capacity_retention: exp[predKey] || exp.predicted_capacity_retention || 0,
+        predicted_turbidity_removal: exp[predKey] || exp.predicted_turbidity_removal || 0,
+      }))
+
       return (
         <div className="mx-auto max-w-[1500px] px-5 pb-16">
           <ExperimentGrid
-            experiments={research?.candidate_experiments || []}
+            experiments={transformedExperiments}
             objective={research?.research_objective}
             search={research?.search}
             knowledgeCount={research?.retrieved_knowledge?.length ?? 0}
             selectedId={selectedId}
             recommendedId={research?.recommended_experiment?.id}
-            onSimulate={simulateFor}
+            onSimulate={(params) => {
+              setSelectedExperimentForApparatus(params)
+              setSelectedId(params?.id ?? null)
+              setStep('apparatus')
+            }}
             template={selectedTemplate}
+            domain={domain}
           >
             <div className="grid gap-5 xl:grid-cols-2">
               <YieldComparisonChart
-                experiments={research?.candidate_experiments || []}
+                experiments={transformedExperiments}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                predictionKey={predKey}
               />
-              <ScoreBreakdownChart experiments={research?.candidate_experiments || []} />
+              <ScoreBreakdownChart experiments={transformedExperiments} />
             </div>
             <GlassCard className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
                 <div className="text-sm font-medium text-slate-100">
-                  Ready to run the recommended experiment?
+                  Ready to configure apparatus & run the recommended experiment?
                 </div>
                 <p className="mt-1 text-[11px] text-slate-400">
-                  The virtual reactor walks through all six process stages and reports the simulated
-                  outcome next to the model prediction.
+                  Review the laboratory setup, instruments, and reagents for this candidate before initiating
+                  the virtual experiment.
                 </p>
               </div>
-              <Button onClick={() => simulateFor(research?.recommended_experiment, research?.simulation)}>
+              <Button onClick={() => {
+                const rec = research?.recommended_experiment || transformedExperiments[0]
+                setSelectedExperimentForApparatus(rec)
+                setSelectedId(rec?.id ?? null)
+                setStep('apparatus')
+              }}>
                 ⚗ Start virtual experiment
               </Button>
             </GlassCard>
@@ -325,20 +536,57 @@ export default function App() {
       )
     }
 
+    if (step === 'apparatus') {
+      const domainId = selectedTemplate?.id || 'reaction-yield'
+      const exp =
+        selectedExperimentForApparatus ||
+        research?.recommended_experiment ||
+        (research?.candidate_experiments || [])[0]
+
+      return (
+        <ApparatusSetup
+          experiment={exp}
+          selectedTemplate={selectedTemplate}
+          activeResearchPapers={activeResearchPapers}
+          research={research}
+          onPerformExperiment={(targetExp) => simulateFor(targetExp || exp, null, domainId)}
+          onBack={() => setStep('experiments')}
+        />
+      )
+    }
+
     if (step === 'simulation') {
+      const domainId = selectedTemplate?.id || 'reaction-yield'
       return (
         <div className="mx-auto max-w-[1500px] px-5 pb-16">
           {simulating && !simulation ? (
             <GlassCard className="p-10 text-center text-sm text-slate-400">
-              Preparing the virtual reactor…
+              Preparing the virtual experiment…
             </GlassCard>
-          ) : (
+          ) : simulation ? (
             <VirtualReactor
               simulation={simulation}
               title={simulationTitle}
               onComplete={handleSimulationComplete}
               onExit={() => setStep('report')}
+              domainId={domainId}
             />
+          ) : (
+            <GlassCard className="p-10 text-center max-w-xl mx-auto my-12 space-y-4">
+              <div className="text-4xl">⚗️</div>
+              <div className="text-lg font-semibold text-slate-100">No Virtual Experiment Active</div>
+              <p className="text-xs leading-relaxed text-slate-400">
+                Start a research pipeline or design an experiment to launch the interactive virtual reactor simulation.
+              </p>
+              <div className="flex justify-center gap-3 pt-2">
+                <Button onClick={() => setStep('choose')}>
+                  🔬 Choose Experiment
+                </Button>
+                <Button variant="secondary" onClick={() => setStep('workspace')}>
+                  📝 Open Workspace
+                </Button>
+              </div>
+            </GlassCard>
           )}
         </div>
       )
@@ -346,7 +594,12 @@ export default function App() {
 
     return (
       <div className="mx-auto max-w-[1500px] px-5">
-        <ResearchReport research={research} onSimulate={simulateFor} onReset={reset} />
+        <ResearchReport
+          research={research}
+          activeResearchPapers={activeResearchPapers}
+          onSimulate={(exp) => simulateFor(exp, null, selectedTemplate?.id || 'reaction-yield')}
+          onReset={reset}
+        />
       </div>
     )
   }
@@ -400,10 +653,10 @@ export default function App() {
         <footer className="mx-auto max-w-[1500px] w-full px-5 pb-10 pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-5 text-[10px] leading-relaxed text-slate-500">
             <span>
-              Nucleus AI R&amp;D Lab · AI-powered experimental discovery · prototype for demonstration
+              Nucleus AI R&D Lab · Multi-domain AI-powered experimental discovery · prototype for demonstration
             </span>
             <span className="mono">
-              Dataset provenance: synthetic_prototype_v1 · model: RandomForestRegressor
+              Models: RandomForestRegressor · Data: synthetic_prototype_v1 · All domains model-backed
             </span>
           </div>
         </footer>

@@ -33,6 +33,24 @@ CREATE TABLE IF NOT EXISTS research_runs (
     payload_json      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_research_runs_created_at ON research_runs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS research_papers (
+    paper_id        TEXT PRIMARY KEY,
+    title           TEXT NOT NULL,
+    authors_json    TEXT,
+    year            INTEGER,
+    venue           TEXT,
+    abstract        TEXT,
+    citation_count  INTEGER,
+    doi             TEXT,
+    is_open_access  INTEGER,
+    url             TEXT,
+    open_access_pdf TEXT,
+    source          TEXT,
+    summary_json    TEXT,
+    saved_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_research_papers_saved_at ON research_papers (saved_at DESC);
 """
 
 
@@ -161,6 +179,121 @@ class RunStore:
                 return int(connection.execute("SELECT COUNT(*) FROM research_runs").fetchone()[0])
         except Exception:  # noqa: BLE001
             return 0
+
+    # ------------------------------------------------------------------ #
+    # research papers library
+    # ------------------------------------------------------------------ #
+    def save_paper(self, paper: Dict[str, Any]) -> bool:
+        """Save a paper to the local research library."""
+        if not self.init():
+            return False
+        paper_id = paper.get("paper_id") or paper.get("id") or str(uuid.uuid4().hex[:12])
+        authors = paper.get("authors", [])
+        authors_json = json.dumps(authors) if isinstance(authors, (list, dict)) else str(authors or "[]")
+        summary = paper.get("summary")
+        summary_json = json.dumps(summary) if isinstance(summary, (dict, list)) else None
+        saved_at = paper.get("saved_at") or datetime.now(timezone.utc).isoformat()
+
+        try:
+            with self._lock, self._connect() as connection:
+                connection.execute(
+                    "INSERT OR REPLACE INTO research_papers "
+                    "(paper_id, title, authors_json, year, venue, abstract, citation_count, "
+                    " doi, is_open_access, url, open_access_pdf, source, summary_json, saved_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        str(paper_id),
+                        str(paper.get("title") or "Untitled paper"),
+                        authors_json,
+                        int(paper.get("year")) if paper.get("year") is not None else None,
+                        str(paper.get("venue") or ""),
+                        str(paper.get("abstract") or ""),
+                        int(paper.get("citation_count", paper.get("citationCount", 0)) or 0),
+                        str(paper.get("doi") or ""),
+                        1 if paper.get("is_open_access") or paper.get("isOpenAccess") else 0,
+                        str(paper.get("url") or ""),
+                        str(paper.get("open_access_pdf") or paper.get("openAccessPdf") or ""),
+                        str(paper.get("source") or "Semantic Scholar"),
+                        summary_json,
+                        saved_at,
+                    ),
+                )
+            return True
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not save paper %s: %s", paper_id, error)
+            return False
+
+    def list_papers(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """List all papers saved in the library, newest first."""
+        if not self.init():
+            return []
+        try:
+            with self._lock, self._connect() as connection:
+                rows = connection.execute(
+                    "SELECT * FROM research_papers ORDER BY saved_at DESC LIMIT ?",
+                    (int(limit),),
+                ).fetchall()
+            papers = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["authors"] = json.loads(item.pop("authors_json") or "[]")
+                except Exception:
+                    item["authors"] = []
+                summary_raw = item.pop("summary_json", None)
+                if summary_raw:
+                    try:
+                        item["summary"] = json.loads(summary_raw)
+                    except Exception:
+                        item["summary"] = None
+                else:
+                    item["summary"] = None
+                item["is_open_access"] = bool(item.get("is_open_access"))
+                papers.append(item)
+            return papers
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not list papers: %s", error)
+            return []
+
+    def get_paper(self, paper_id: str) -> Optional[Dict[str, Any]]:
+        """Get one saved paper by its ID."""
+        if not self.init():
+            return None
+        try:
+            with self._lock, self._connect() as connection:
+                row = connection.execute(
+                    "SELECT * FROM research_papers WHERE paper_id = ?",
+                    (str(paper_id),),
+                ).fetchone()
+            if not row:
+                return None
+            item = dict(row)
+            try:
+                item["authors"] = json.loads(item.pop("authors_json") or "[]")
+            except Exception:
+                item["authors"] = []
+            summary_raw = item.pop("summary_json", None)
+            item["summary"] = json.loads(summary_raw) if summary_raw else None
+            item["is_open_access"] = bool(item.get("is_open_access"))
+            return item
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not get paper %s: %s", paper_id, error)
+            return None
+
+    def delete_paper(self, paper_id: str) -> bool:
+        """Remove a paper from the research library."""
+        if not self.init():
+            return False
+        try:
+            with self._lock, self._connect() as connection:
+                cursor = connection.execute(
+                    "DELETE FROM research_papers WHERE paper_id = ?",
+                    (str(paper_id),),
+                )
+                return cursor.rowcount > 0
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not delete paper %s: %s", paper_id, error)
+            return False
 
 
 run_store = RunStore()

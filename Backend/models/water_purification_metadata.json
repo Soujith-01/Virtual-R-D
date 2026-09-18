@@ -1,0 +1,70 @@
+{
+  "app": "Nucleus AI R&D Lab",
+  "domain": "water_purification",
+  "model_type": "RandomForestRegressor",
+  "target": "turbidity_removal_percent",
+  "target_unit": "%",
+  "target_description": "Turbidity Removal (%)",
+  "features": [
+    "coagulant_dose_mg_l",
+    "ph",
+    "contact_time_min",
+    "temperature_c",
+    "mixing_speed_rpm"
+  ],
+  "feature_labels": {
+    "coagulant_dose_mg_l": "Coagulant Dose",
+    "ph": "pH",
+    "contact_time_min": "Contact Time",
+    "temperature_c": "Temperature",
+    "mixing_speed_rpm": "Mixing Speed"
+  },
+  "categorical_features": [],
+  "numeric_features": [
+    "coagulant_dose_mg_l",
+    "ph",
+    "contact_time_min",
+    "temperature_c",
+    "mixing_speed_rpm"
+  ],
+  "n_estimators": 300,
+  "n_train": 3200,
+  "n_test": 800,
+  "dataset_rows": 4000,
+  "dataset_provenance": "synthetic_prototype_v1",
+  "metrics": {
+    "mae": 1.8268,
+    "rmse": 2.3814,
+    "r2": 0.977
+  },
+  "cv_r2_scores": [
+    0.9767,
+    0.9756,
+    0.9767,
+    0.9779,
+    0.976
+  ],
+  "cv_r2_mean": 0.9766,
+  "cv_r2_std": 0.0008,
+  "residual_std": 2.3818,
+  "feature_importance": {
+    "mixing_speed_rpm": 0.3718601686943138,
+    "ph": 0.29885424586737347,
+    "coagulant_dose_mg_l": 0.2976768485994121,
+    "contact_time_min": 0.022425519860950576,
+    "temperature_c": 0.009183216977949962
+  },
+  "feature_importance_by_group": {
+    "mixing_speed_rpm": 0.37186,
+    "ph": 0.298854,
+    "coagulant_dose_mg_l": 0.297677,
+    "contact_time_min": 0.022426,
+    "temperature_c": 0.009183
+  },
+  "trained_at": "2026-09-17T18:16:00+00:00",
+  "sklearn_version": "1.8.0",
+  "python_version": "3.12.10",
+  "random_state": 42,
+  "domain_label": "Water Purification",
+  "disclaimer": "Trained on a SIMULATED prototype dataset. Predictions demonstrate the workflow and are not validated real-world results."
+}

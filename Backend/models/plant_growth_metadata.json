@@ -1,0 +1,70 @@
+{
+  "app": "Nucleus AI R&D Lab",
+  "domain": "plant_growth",
+  "model_type": "RandomForestRegressor",
+  "target": "biomass_yield",
+  "target_unit": "g",
+  "target_description": "Biomass Yield (g)",
+  "features": [
+    "light_intensity_lux",
+    "co2_concentration_ppm",
+    "nutrient_concentration_mm",
+    "temperature_c",
+    "water_supply_ml_day"
+  ],
+  "feature_labels": {
+    "light_intensity_lux": "Light Intensity",
+    "co2_concentration_ppm": "CO\u2082 Concentration",
+    "nutrient_concentration_mm": "Nutrient Concentration",
+    "temperature_c": "Temperature",
+    "water_supply_ml_day": "Water Supply"
+  },
+  "categorical_features": [],
+  "numeric_features": [
+    "light_intensity_lux",
+    "co2_concentration_ppm",
+    "nutrient_concentration_mm",
+    "temperature_c",
+    "water_supply_ml_day"
+  ],
+  "n_estimators": 300,
+  "n_train": 3200,
+  "n_test": 800,
+  "dataset_rows": 4000,
+  "dataset_provenance": "synthetic_prototype_v1",
+  "metrics": {
+    "mae": 4.6553,
+    "rmse": 6.2352,
+    "r2": 0.9775
+  },
+  "cv_r2_scores": [
+    0.9777,
+    0.979,
+    0.9768,
+    0.9804,
+    0.978
+  ],
+  "cv_r2_mean": 0.9784,
+  "cv_r2_std": 0.0012,
+  "residual_std": 6.216,
+  "feature_importance": {
+    "temperature_c": 0.31886542896886605,
+    "nutrient_concentration_mm": 0.2738980369351535,
+    "light_intensity_lux": 0.26104318439305124,
+    "co2_concentration_ppm": 0.13686368876945285,
+    "water_supply_ml_day": 0.009329660933476432
+  },
+  "feature_importance_by_group": {
+    "temperature_c": 0.318865,
+    "nutrient_concentration_mm": 0.273898,
+    "light_intensity_lux": 0.261043,
+    "co2_concentration_ppm": 0.136864,
+    "water_supply_ml_day": 0.00933
+  },
+  "trained_at": "2026-09-17T18:15:53+00:00",
+  "sklearn_version": "1.8.0",
+  "python_version": "3.12.10",
+  "random_state": 42,
+  "domain_label": "Plant Growth Optimization",
+  "disclaimer": "Trained on a SIMULATED prototype dataset. Predictions demonstrate the workflow and are not validated real-world results."
+}

@@ -1,5 +1,6 @@
 import ExperimentCard from './ExperimentCard'
 import { GlassCard, Pill, SectionTitle } from './ui'
+import { getPredictionKey, getTargetLabel, getTargetUnit } from '../lib/format'
 
 export default function ExperimentGrid({
   experiments = [],
@@ -10,14 +11,20 @@ export default function ExperimentGrid({
   search,
   knowledgeCount,
   children,
+  domain,
 }) {
+  const domainId = domain?.id || 'reaction-yield'
+  const predKey = getPredictionKey(domainId)
+  const targetLabel = getTargetLabel(domainId, true)
+  const targetUnit = getTargetUnit(domainId)
+
   return (
     <section className="space-y-4">
       <GlassCard className="p-5">
         <SectionTitle
           eyebrow="Step 03"
           title="Candidate experiment dashboard"
-          description="Every candidate was proposed by the model-guided search, predicted by the Random Forest, and scored against the objective. Nothing here is ranked on yield alone."
+          description={`Every candidate was proposed by the model-guided search, predicted by the ${domain?.label || 'Random Forest'}, and scored against the objective. Nothing here is ranked on yield alone.`}
           right={
             <div className="flex flex-wrap items-center gap-2">
               {search?.pool_evaluated && (
@@ -35,7 +42,7 @@ export default function ExperimentGrid({
           <div className="mt-4 grid gap-3 sm:grid-cols-5">
             {Object.entries(objective.weights || {}).map(([key, weight]) => (
               <div key={key} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2">
-                <div className="label-caps text-slate-500">{key} weight</div>
+                <div className="label-caps text-slate-500">{key.replace(/_/g, ' ')} weight</div>
                 <div className="mono mt-0.5 text-sm font-semibold text-cyan-200">
                   {(weight * 100).toFixed(1)}%
                 </div>
@@ -62,6 +69,8 @@ export default function ExperimentGrid({
             selected={selectedId === experiment.id}
             recommended={recommendedId === experiment.id}
             onSimulate={onSimulate}
+            domainId={domainId}
+            predictionKey={predKey}
           />
         ))}
       </div>

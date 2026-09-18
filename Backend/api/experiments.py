@@ -33,8 +33,13 @@ def _require_model() -> None:
 
 
 @router.get("/design-space", summary="Supported variables, ranges and protocol levels")
-def design_space() -> Dict[str, Any]:
+def design_space(domain: str = Query("reaction_yield", description="Domain ID")) -> Dict[str, Any]:
     """The experimental design space the model was trained on."""
+    clean_domain = (domain or "reaction_yield").replace("-", "_")
+    if clean_domain != "reaction_yield":
+        from services.domain_generator import get_domain_config
+        return get_domain_config(clean_domain)
+
     return {
         "numeric_variables": [
             {
@@ -69,14 +74,25 @@ def generate(payload: GenerateExperimentsRequest) -> GenerateExperimentsResponse
     Random Forest, score against the parsed objective, refine locally, then keep a
     diverse shortlist.
     """
-    _require_model()
+    raw_domain = payload.domain or "reaction_yield"
+    clean_domain = raw_domain.replace("-", "_")
 
     try:
-        result = generate_experiments(
-            payload.objective,
-            num_experiments=payload.num_experiments,
-            constraints=payload.constraints,
-        )
+        if clean_domain == "reaction_yield":
+            _require_model()
+            result = generate_experiments(
+                payload.objective,
+                num_experiments=payload.num_experiments,
+                constraints=payload.constraints,
+            )
+        else:
+            from services.domain_generator import generate_experiments as domain_generate
+            result = domain_generate(
+                clean_domain,
+                payload.objective,
+                num_experiments=payload.num_experiments,
+                constraints=payload.constraints,
+            )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
 
@@ -103,19 +119,57 @@ def generate(payload: GenerateExperimentsRequest) -> GenerateExperimentsResponse
 )
 def run_simulation(payload: SimulationRequest) -> SimulationResponse:
     """Produce the frame-by-frame timeline the frontend animates."""
-    _require_model()
+    raw_domain = payload.model_dump().get('domain') or 'reaction_yield'
+    domain = raw_domain.replace('-', '_')
+    if domain == 'reaction_yield':
+        _require_model()
+    else:
+        from services.model_registry import model_registry
+        try:
+            model_registry.load(domain)
+        except ModelNotTrainedError as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
-    experiment = payload.model_dump(exclude={"speed"})
+    # Extract experiment params based on domain — exclude control fields and None values
+    # (SimulationRequest has Optional reaction_yield fields that arrive as None for other domains)
+    experiment = {
+        k: v for k, v in payload.model_dump(exclude={"speed"}).items()
+        if k != 'domain' and v is not None
+    }
+    
     try:
-        prediction = model_store.predict_one(experiment)
-        result = simulate(
-            experiment,
-            predicted_yield=prediction["predicted_yield"],
-            uncertainty_std=prediction["uncertainty_std"],
-            speed=payload.speed,
-        )
+        if domain == 'reaction_yield':
+            prediction = model_store.predict_one(experiment)
+            result = simulate(
+                experiment,
+                predicted_yield=prediction["predicted_yield"],
+                uncertainty_std=prediction["uncertainty_std"],
+                speed=payload.speed,
+            )
+        else:
+            from simulator.domain_simulator import simulate as domain_simulate
+            from services.model_registry import model_registry
+            prediction = model_registry.predict_one(domain, experiment)
+            pred_key = {
+                'solar_efficiency': 'predicted_efficiency',
+                'plant_growth': 'predicted_biomass_yield',
+                'battery_performance': 'predicted_capacity_retention',
+                'water_purification': 'predicted_turbidity_removal',
+            }.get(domain, 'predicted_value')
+            result = domain_simulate(
+                experiment,
+                domain=domain,
+                predicted_target=prediction.get(pred_key, 0),
+                uncertainty_std=prediction.get('uncertainty_std', 0),
+                speed=payload.speed,
+            )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+
+    if "predicted_yield" not in result:
+        result["predicted_yield"] = result.get("predicted_target")
+    if "observed_yield" not in result:
+        result["observed_yield"] = result.get("observed_target")
 
     return SimulationResponse(**result)
 

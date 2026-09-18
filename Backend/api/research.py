@@ -29,16 +29,28 @@ def research(payload: ResearchRequest) -> ResearchResponse:
     scientific knowledge, generate candidates, predict, compare, rank, explain
     and propose the next experiment.
     """
-    try:
-        model_store.load()
-    except ModelNotTrainedError as error:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    raw_domain = payload.domain or "reaction_yield"
+    clean_domain = raw_domain.replace("-", "_")
+
+    if clean_domain == "reaction_yield":
+        try:
+            model_store.load()
+        except ModelNotTrainedError as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    else:
+        from services.model_registry import model_registry
+        try:
+            model_registry.load(clean_domain)
+        except Exception as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     try:
         result = run_research(
             payload.research_question,
             num_experiments=payload.num_experiments,
             constraints=payload.constraints,
+            domain=clean_domain,
+            papers=payload.papers,
             include_simulation=payload.include_simulation,
             include_comparison=payload.include_comparison,
         )

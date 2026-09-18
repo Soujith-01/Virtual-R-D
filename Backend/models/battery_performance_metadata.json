@@ -1,0 +1,70 @@
+{
+  "app": "Nucleus AI R&D Lab",
+  "domain": "battery_performance",
+  "model_type": "RandomForestRegressor",
+  "target": "capacity_retention_percent",
+  "target_unit": "%",
+  "target_description": "Capacity Retention (%)",
+  "features": [
+    "electrolyte_concentration_m",
+    "charging_rate_c",
+    "operating_temperature_c",
+    "discharge_rate_c",
+    "cycle_count"
+  ],
+  "feature_labels": {
+    "electrolyte_concentration_m": "Electrolyte Concentration",
+    "charging_rate_c": "Charging Rate",
+    "operating_temperature_c": "Operating Temperature",
+    "discharge_rate_c": "Discharge Rate",
+    "cycle_count": "Cycle Count"
+  },
+  "categorical_features": [],
+  "numeric_features": [
+    "electrolyte_concentration_m",
+    "charging_rate_c",
+    "operating_temperature_c",
+    "discharge_rate_c",
+    "cycle_count"
+  ],
+  "n_estimators": 300,
+  "n_train": 3200,
+  "n_test": 800,
+  "dataset_rows": 4000,
+  "dataset_provenance": "synthetic_prototype_v1",
+  "metrics": {
+    "mae": 1.6569,
+    "rmse": 2.1653,
+    "r2": 0.9711
+  },
+  "cv_r2_scores": [
+    0.9715,
+    0.9716,
+    0.9731,
+    0.9699,
+    0.9726
+  ],
+  "cv_r2_mean": 0.9717,
+  "cv_r2_std": 0.0011,
+  "residual_std": 2.1656,
+  "feature_importance": {
+    "discharge_rate_c": 0.3357628801696228,
+    "charging_rate_c": 0.29116518413794795,
+    "cycle_count": 0.15893722883624284,
+    "operating_temperature_c": 0.1580987319142972,
+    "electrolyte_concentration_m": 0.056035974941889215
+  },
+  "feature_importance_by_group": {
+    "discharge_rate_c": 0.335763,
+    "charging_rate_c": 0.291165,
+    "cycle_count": 0.158937,
+    "operating_temperature_c": 0.158099,
+    "electrolyte_concentration_m": 0.056036
+  },
+  "trained_at": "2026-09-17T18:15:57+00:00",
+  "sklearn_version": "1.8.0",
+  "python_version": "3.12.10",
+  "random_state": 42,
+  "domain_label": "Battery Performance",
+  "disclaimer": "Trained on a SIMULATED prototype dataset. Predictions demonstrate the workflow and are not validated real-world results."
+}

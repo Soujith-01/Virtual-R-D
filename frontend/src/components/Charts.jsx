@@ -33,7 +33,7 @@ function DarkTooltip({ active, payload, label, unit }) {
           <span className="text-slate-400">{entry.name}</span>
           <span className="mono ml-auto">
             {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
-            {unit && entry.dataKey === 'predicted_yield' ? ' %' : ''}
+            {unit && entry.dataKey === 'predicted_yield' && ' %'}
           </span>
         </div>
       ))}
@@ -43,23 +43,28 @@ function DarkTooltip({ active, payload, label, unit }) {
 
 /* ----------------------- predicted yield vs score ------------------------ */
 
-export function YieldComparisonChart({ experiments = [], selectedId, onSelect }) {
-  const data = experiments.map((experiment) => ({
-    name: experiment.id,
-    predicted_yield: Number(experiment.predicted_yield.toFixed(1)),
-    score: Number(experiment.score.toFixed(1)),
-    low: Number(experiment.interval_low.toFixed(1)),
-    high: Number(experiment.interval_high.toFixed(1)),
-    reaction_time: experiment.reaction_time,
-    selected: experiment.id === selectedId,
-  }))
+export function YieldComparisonChart({ experiments = [], selectedId, onSelect, predictionKey = 'predicted_yield' }) {
+  const data = experiments.map((experiment) => {
+    const predValue = experiment[predictionKey] || experiment.predicted_yield || experiment.predicted_efficiency ||
+      experiment.predicted_biomass_yield || experiment.predicted_capacity_retention ||
+      experiment.predicted_turbidity_removal || 0
+    return {
+      name: experiment.id,
+      predicted_yield: Number(predValue.toFixed(1)),
+      score: Number((experiment.score || 0).toFixed(1)),
+      low: Number((experiment.interval_low || 0).toFixed(1)),
+      high: Number((experiment.interval_high || 0).toFixed(1)),
+      reaction_time: experiment.reaction_time || experiment.contact_time_min || 0,
+      selected: experiment.id === selectedId,
+    }
+  })
 
   return (
     <GlassCard className="p-5">
       <SectionTitle
         eyebrow="Comparison"
-        title="Experiment vs predicted yield"
-        description="Bars are the model's predicted yield. The line is the objective-weighted score - notice that the highest-yield run is not automatically the best candidate."
+        title="Experiment vs predicted target"
+        description="Bars are the model's predicted target value. The line is the objective-weighted score - notice that the highest-value run is not automatically the best candidate."
       />
       <div className="mt-4 h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -78,7 +83,7 @@ export function YieldComparisonChart({ experiments = [], selectedId, onSelect })
             <ReferenceLine y={50} stroke="rgba(251,191,36,0.35)" strokeDasharray="4 4" />
             <Bar
               dataKey="predicted_yield"
-              name="Predicted yield (%)"
+              name="Predicted target (%)"
               fill="url(#yieldFill)"
               radius={[6, 6, 0, 0]}
               maxBarSize={54}
@@ -106,7 +111,7 @@ export function YieldComparisonChart({ experiments = [], selectedId, onSelect })
         </ResponsiveContainer>
       </div>
       <p className="mono mt-2 text-[10px] text-slate-500">
-        Dashed line = 50 % yield reference. Y-axis 0–100 for both series.
+        Dashed line = 50% reference. Y-axis 0–100 for both series.
       </p>
     </GlassCard>
   )
@@ -167,8 +172,8 @@ export function AnchorComparisonChart({ comparison = [] }) {
 
   const data = comparison.map((item) => ({
     name: item.label,
-    predicted_yield: Number(item.predicted_yield.toFixed(1)),
-    score: Number(item.score.toFixed(1)),
+    predicted_yield: Number((item.predicted_yield || item.predicted_value || 0).toFixed(1)),
+    score: Number((item.score || 0).toFixed(1)),
     isRecommendation: item.label === 'AI recommendation',
   }))
 
@@ -187,7 +192,7 @@ export function AnchorComparisonChart({ comparison = [] }) {
             <YAxis domain={[0, 100]} {...AXIS} />
             <Tooltip content={<DarkTooltip unit="%" />} cursor={{ fill: 'rgba(127,243,255,0.05)' }} />
             <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
-            <Bar dataKey="predicted_yield" name="Predicted yield (%)" radius={[6, 6, 0, 0]} maxBarSize={64}>
+            <Bar dataKey="predicted_yield" name="Predicted value (%)" radius={[6, 6, 0, 0]} maxBarSize={64}>
               {data.map((item) => (
                 <Cell key={item.name} fill={item.isRecommendation ? '#38e2f5' : 'rgba(148,163,184,0.45)'} />
               ))}
@@ -209,7 +214,7 @@ export function AnchorComparisonChart({ comparison = [] }) {
             <div className="text-[11px] font-semibold text-slate-200">{item.label}</div>
             <div className="mono mt-1 text-lg text-cyan-200">{num(item.predicted_yield, 1)}%</div>
             <div className="text-[10px] text-slate-500">
-              score {num(item.score, 1)} · {item.risk?.level} risk
+              score {num(item.score, 1)} · {item.risk?.level || 'unknown'} risk
             </div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">{item.note}</p>
           </div>

@@ -3,12 +3,37 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Button, GlassCard, Meter, Pill, TEXT_TONES } from './ui'
 import { COMPONENT_COLORS, COMPONENT_LABELS, paramValue, riskTone, scoreTone, yieldTone } from '../lib/format'
 import { CATALYST_LABELS } from '../lib/constants'
+import { getTargetLabel, getTargetUnit, getPredictionKey, getStageLabels } from '../lib/format'
 
-const PARAM_ORDER = ['temperature', 'pressure', 'catalyst', 'concentration', 'reaction_time']
+const PARAM_ORDER = [
+  // reaction_yield
+  'temperature', 'pressure', 'catalyst', 'concentration', 'reaction_time',
+  // solar_efficiency
+  'cell_thickness_nm', 'doping_concentration', 'annealing_temperature_c',
+  // plant_growth
+  'co2_concentration_ppm', 'nutrient_concentration_mm', 'water_supply_ml_day',
+  // battery_performance
+  'electrolyte_concentration_m', 'charging_rate_c', 'discharge_rate_c', 'cycle_count',
+  // water_purification
+  'coagulant_dose_mg_l', 'ph', 'contact_time_min', 'mixing_speed_rpm',
+  // shared across domains (no duplicates)
+  'light_intensity_lux', 'operating_temperature_c', 'temperature_c',
+]
 
-export default function ExperimentCard({ experiment, selected, recommended, onSimulate, index = 0 }) {
+export default function ExperimentCard({ experiment, selected, recommended, onSimulate, index = 0, domainId = 'reaction-yield', predictionKey = 'predicted_yield' }) {
   const [showReasoning, setShowReasoning] = useState(false)
   const tone = scoreTone(experiment.score)
+
+  // Get the prediction value
+  const predValue = experiment[predictionKey] || experiment.predicted_yield || experiment.predicted_efficiency ||
+    experiment.predicted_biomass_yield || experiment.predicted_capacity_retention || experiment.predicted_turbidity_removal || 0
+
+  // Get target label and unit
+  const targetLabel = getTargetLabel(domainId, true)
+  const targetUnit = getTargetUnit(domainId)
+
+  // Get stage labels for this domain
+  const stageLabels = getStageLabels(domainId)
 
   return (
     <motion.div
@@ -35,49 +60,53 @@ export default function ExperimentCard({ experiment, selected, recommended, onSi
           <div>
             <div className="flex items-center gap-2">
               <span className="mono text-sm font-semibold text-slate-100">{experiment.id}</span>
-              <Pill tone={tone}>score {experiment.score.toFixed(1)}</Pill>
-              <Pill tone={riskTone(experiment.risk?.level)}>{experiment.risk?.level} risk</Pill>
+              <Pill tone={tone}>score {experiment.score?.toFixed(1) || '—'}</Pill>
+              <Pill tone={riskTone(experiment.risk?.level)}>{experiment.risk?.level || 'unknown'} risk</Pill>
             </div>
             <div className="mt-1 text-[10px] text-slate-500">
               rank #{experiment.rank} · origin: {experiment.origin} ·{' '}
-              {CATALYST_LABELS[experiment.catalyst] ?? experiment.catalyst}
+              {experiment.catalyst ? CATALYST_LABELS[experiment.catalyst] ?? experiment.catalyst : ''}
+              {experiment.operating_temperature_c && ` · ${experiment.operating_temperature_c}°C`}
             </div>
           </div>
         </div>
 
-        {/* yield */}
+        {/* predicted value */}
         <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
           <div className="flex items-end justify-between">
             <div>
-              <div className="label-caps text-slate-500">Predicted yield</div>
+              <div className="label-caps text-slate-500">Predicted {targetLabel}</div>
               <div className="mono text-2xl font-semibold">
-                <span className={TEXT_TONES[yieldTone(experiment.predicted_yield)]}>
-                  {experiment.predicted_yield.toFixed(1)}
+                <span className={TEXT_TONES[yieldTone(predValue)]}>
+                  {predValue.toFixed(1)}
                 </span>
-                <span className="ml-1 text-sm text-slate-500">%</span>
+                <span className="ml-1 text-sm text-slate-500">{targetUnit}</span>
               </div>
             </div>
             <div className="text-right text-[10px] text-slate-500">
-              <div className="mono">±{experiment.uncertainty_std.toFixed(2)} sd</div>
+              <div className="mono">±{experiment.uncertainty_std?.toFixed(2) || '—'} sd</div>
               <div className="mono">
-                {experiment.interval_low.toFixed(1)}–{experiment.interval_high.toFixed(1)}%
+                {(experiment.interval_low || 0).toFixed(1)}–{(experiment.interval_high || 0).toFixed(1)}{targetUnit}
               </div>
-              <div>conf {experiment.estimated_confidence.toFixed(2)}</div>
+              <div>conf {experiment.estimated_confidence?.toFixed(2) || '—'}</div>
             </div>
           </div>
-          <Meter className="mt-2" value={experiment.predicted_yield} tone={yieldTone(experiment.predicted_yield)} />
+          <Meter className="mt-2" value={predValue} tone={yieldTone(predValue)} />
         </div>
 
         {/* parameters */}
         <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-          {PARAM_ORDER.map((key) => (
-            <div key={key}>
-              <dt className="text-[10px] uppercase tracking-wider text-slate-500">
-                {key.replace('_', ' ')}
-              </dt>
-              <dd className="mono text-xs text-slate-200">{paramValue(key, experiment[key])}</dd>
-            </div>
-          ))}
+          {PARAM_ORDER.map((key) => {
+            if (experiment[key] === undefined || experiment[key] === null) return null
+            return (
+              <div key={key}>
+                <dt className="text-[10px] uppercase tracking-wider text-slate-500">
+                  {key.replace(/_/g, ' ')}
+                </dt>
+                <dd className="mono text-xs text-slate-200">{paramValue(key, experiment[key], domainId)}</dd>
+              </div>
+            )
+          })}
         </dl>
 
         {/* score composition */}
@@ -116,9 +145,9 @@ export default function ExperimentCard({ experiment, selected, recommended, onSi
         {/* actions */}
         <div className="mt-4 flex gap-2">
           <Button className="flex-1 !py-2 text-xs" onClick={() => onSimulate(experiment)}>
-            Select &amp; simulate
+            Select & simulate
           </Button>
-          <Button variant="ghost" className="!px-3 !py-2 text-xs" onClick={() => setShowReasoning((value) => !value)}>
+          <Button variant="ghost" className="!px-3 !py-2 text-xs" onClick={() => setShowReasoning(!showReasoning)}>
             {showReasoning ? 'Hide' : 'Why?'}
           </Button>
         </div>

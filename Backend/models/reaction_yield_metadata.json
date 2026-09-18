@@ -1,0 +1,75 @@
+{
+  "app": "Nucleus AI R&D Lab",
+  "domain": "reaction_yield",
+  "model_type": "RandomForestRegressor",
+  "target": "yield",
+  "target_unit": "%",
+  "target_description": "Reaction yield (%)",
+  "features": [
+    "temperature",
+    "pressure",
+    "catalyst",
+    "concentration",
+    "reaction_time"
+  ],
+  "feature_labels": {
+    "temperature": "Temperature",
+    "pressure": "Pressure",
+    "catalyst": "Catalyst",
+    "concentration": "Concentration",
+    "reaction_time": "Reaction Time"
+  },
+  "categorical_features": [
+    "catalyst"
+  ],
+  "numeric_features": [
+    "temperature",
+    "pressure",
+    "concentration",
+    "reaction_time"
+  ],
+  "n_estimators": 300,
+  "n_train": 3200,
+  "n_test": 800,
+  "dataset_rows": 4000,
+  "dataset_provenance": "synthetic_prototype_v1",
+  "metrics": {
+    "mae": 2.8852,
+    "rmse": 3.673,
+    "r2": 0.9679
+  },
+  "cv_r2_scores": [
+    0.9685,
+    0.9732,
+    0.971,
+    0.9699,
+    0.9679
+  ],
+  "cv_r2_mean": 0.9701,
+  "cv_r2_std": 0.0019,
+  "residual_std": 3.6752,
+  "feature_importance": {
+    "concentration": 0.3672218349262916,
+    "temperature": 0.27452574376932043,
+    "catalyst_None": 0.12427107482900762,
+    "catalyst_B": 0.08000957190076409,
+    "reaction_time": 0.04763669747717621,
+    "catalyst_C": 0.04228307765550384,
+    "catalyst_D": 0.04025979975143444,
+    "catalyst_A": 0.012460044566446572,
+    "pressure": 0.011332155124055122
+  },
+  "feature_importance_by_group": {
+    "concentration": 0.367222,
+    "temperature": 0.274526,
+    "catalyst": 0.299284,
+    "reaction_time": 0.047637,
+    "pressure": 0.011332
+  },
+  "trained_at": "2026-09-17T18:26:12+00:00",
+  "sklearn_version": "1.8.0",
+  "python_version": "3.12.10",
+  "random_state": 42,
+  "domain_label": "Reaction Yield Optimization",
+  "disclaimer": "Trained on a SIMULATED prototype dataset. Predictions demonstrate the workflow and are not validated real-world results."
+}

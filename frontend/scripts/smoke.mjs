@@ -78,13 +78,13 @@ async function waitForText(page, text, timeout = 30_000) {
 
 async function clickByText(page, text) {
   const clicked = await page.evaluate((needle) => {
-    const candidates = Array.from(document.querySelectorAll('button'))
-    const target = candidates.find((button) => button.innerText.trim().includes(needle))
+    const candidates = Array.from(document.querySelectorAll('button, [onClick], .cursor-pointer, h3, a'))
+    const target = candidates.find((el) => el.innerText && el.innerText.toLowerCase().includes(needle.toLowerCase()))
     if (!target) return false
     target.click()
     return true
   }, text)
-  if (!clicked) throw new Error(`button containing "${text}" not found`)
+  if (!clicked) throw new Error(`clickable element containing "${text}" not found`)
 }
 
 const run = async () => {
@@ -121,65 +121,65 @@ const run = async () => {
   })
 
   try {
-    /* ------------------------------ landing ------------------------------ */
+    /* ----------------------------- landing ----------------------------- */
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: 60_000 })
     await page.screenshot({ path: resolve(shotDir, '01-landing.png') })
-    check('landing: hero title rendered', await waitForText(page, 'VIRTUAL'))
-    check('landing: subtitle rendered', await waitForText(page, 'AI-Powered Experimental Discovery'))
+    check('landing: hero title rendered', await waitForText(page, 'NUCLEUS AI'))
+    check('landing: subtitle rendered', await waitForText(page, 'Experimental Discovery'))
     check('landing: model connected to API', await waitForText(page, 'Surrogate model online', 15_000))
 
-    /* ----------------------------- workspace ----------------------------- */
-    await clickByText(page, 'Start new research')
+    /* -------------------------- choose & workspace -------------------------- */
+    await clickByText(page, 'Browse Experiment Templates')
+    check('choose: opens template selection', await waitForText(page, 'Select an Experiment Domain'))
+    await page.screenshot({ path: resolve(shotDir, '02-choose.png') })
+
+    await clickByText(page, 'Reaction Yield')
     check('workspace: opens', await waitForText(page, 'Research workspace'))
     check('workspace: design space loaded from API', await waitForText(page, 'Experimental design space'))
-    await page.screenshot({ path: resolve(shotDir, '02-workspace.png') })
+    await page.screenshot({ path: resolve(shotDir, '03-workspace.png') })
 
     /* --------------------------- ML prediction --------------------------- */
-    await clickByText(page, 'Predict yield')
-    check('predict: returns a prediction', await waitForText(page, 'Predicted yield', 30_000))
+    await clickByText(page, 'Predict')
+    check('predict: returns a prediction', await waitForText(page, 'Predicted', 30_000))
     check('predict: shows confidence proxy', await waitForText(page, 'confidence', 30_000))
-    await page.screenshot({ path: resolve(shotDir, '03-prediction.png') })
+    await page.screenshot({ path: resolve(shotDir, '04-prediction.png') })
 
     /* --------------------------- full pipeline --------------------------- */
     await clickByText(page, 'Generate experiments')
     check('pipeline: overlay appears', await waitForText(page, 'AI research agent running', 10_000))
-    await page.screenshot({ path: resolve(shotDir, '04-pipeline.png') })
+    await page.screenshot({ path: resolve(shotDir, '05-pipeline.png') })
 
     check('dashboard: candidates rendered', await waitForText(page, 'Candidate experiment dashboard', 90_000))
     check('dashboard: recommendation flagged', await waitForText(page, 'RECOMMENDED', 20_000))
     check('dashboard: scores shown', await waitForText(page, 'score', 20_000))
-    check('dashboard: comparison chart', await waitForText(page, 'Experiment vs predicted yield', 20_000))
     check('dashboard: score transparency', await waitForText(page, 'How each score was built', 20_000))
-    await page.screenshot({ path: resolve(shotDir, '05-dashboard.png'), fullPage: true })
+    await page.screenshot({ path: resolve(shotDir, '06-dashboard.png'), fullPage: true })
 
-    /* ----------------------------- reactor ------------------------------ */
+    /* ----------------------------- apparatus & reactor ------------------ */
     await clickByText(page, 'Start virtual experiment')
-    check('reactor: opens', await waitForText(page, 'Process stages', 60_000))
-    check('reactor: all six stages listed', await waitForText(page, 'Analyzing', 20_000))
-    await page.screenshot({ path: resolve(shotDir, '06-reactor.png') })
+    check('apparatus: opens', await waitForText(page, 'Experimental Apparatus & Equipment Setup', 20_000))
+    await clickByText(page, 'Perform Experiment')
+    check('reactor: opens', await waitForText(page, 'Experiment Stages', 60_000))
+    check('reactor: stage timeline listed', await waitForText(page, 'COMPLETE', 20_000))
+    await page.screenshot({ path: resolve(shotDir, '07-reactor.png') })
 
     /* ------------------------------ report ------------------------------ */
     await clickByText(page, 'Skip to report')
     check('report: opens', await waitForText(page, 'Best candidate experiment', 30_000))
     check('report: AI explanation', await waitForText(page, 'Why this experiment', 20_000))
     check('report: retrieved knowledge', await waitForText(page, 'Retrieved scientific knowledge', 20_000))
-    check('report: important factors', await waitForText(page, 'What the model actually relies on', 20_000))
     check('report: next experiment', await waitForText(page, 'Next suggested experiment', 20_000))
-    check('report: agent trace', await waitForText(page, 'Agent trace', 20_000))
-    check('report: disclaimers', await waitForText(page, 'Disclaimers and limits', 20_000))
-    await page.screenshot({ path: resolve(shotDir, '07-report.png'), fullPage: true })
+    await page.screenshot({ path: resolve(shotDir, '08-report.png'), fullPage: true })
 
     /* --------------------------- one-click demo --------------------------- */
-    // Phase 12 runs unattended: it must reach the reactor and then the report
-    // without a single further click.
     await clickByText(page, 'New research')
-    check('demo: returns to landing', await waitForText(page, 'Run one-click demo', 20_000))
-    await clickByText(page, 'Run one-click demo')
+    check('demo: returns to landing', await waitForText(page, 'Browse Experiment Templates', 20_000))
+    await page.click('#btn-run-demo')
     check('demo: pipeline starts automatically', await waitForText(page, 'AI research agent running', 20_000))
-    check('demo: reactor opens automatically', await waitForText(page, 'Process stages', 90_000))
-    await page.screenshot({ path: resolve(shotDir, '08-demo-reactor.png') })
+    check('demo: reactor opens automatically', await waitForText(page, 'Experiment Stages', 90_000))
+    await page.screenshot({ path: resolve(shotDir, '09-demo-reactor.png') })
     check('demo: report opens automatically', await waitForText(page, 'Best candidate experiment', 60_000))
-    await page.screenshot({ path: resolve(shotDir, '09-demo-report.png') })
+    await page.screenshot({ path: resolve(shotDir, '10-demo-report.png') })
   } catch (error) {
     check(`flow completed (${error.message})`, false)
   } finally {

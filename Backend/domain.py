@@ -68,6 +68,9 @@ FEATURE_NAMES: List[str] = [
     "reaction_time",
 ]
 TARGET_NAME: str = "yield"
+TARGET_UNIT: str = "%"
+TARGET_MIN: float = 0.0    # minimum achievable reaction yield (%)
+TARGET_MAX: float = 100.0  # maximum achievable reaction yield (%)
 
 #: (min, max) for every numeric knob. Used for validation, sampling and
 #: normalisation in the scorer.

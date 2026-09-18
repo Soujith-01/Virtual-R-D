@@ -32,7 +32,7 @@ class ExperimentParams(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={"example": EXAMPLE_EXPERIMENT},
-        extra="forbid",
+        extra="ignore",
     )
 
     temperature: float = Field(..., ge=_T_MIN, le=_T_MAX, description="Reaction temperature (degC)")
@@ -71,6 +71,8 @@ class GenerateExperimentsRequest(BaseModel):
 
     objective: str = Field(..., min_length=3, max_length=500, description="Free-text research objective")
     num_experiments: int = Field(5, ge=1, le=20, description="Shortlist size")
+    domain: Optional[str] = Field("reaction_yield", description="Domain ID")
+    papers: Optional[List[Dict[str, Any]]] = Field(None, description="Selected academic research papers for context")
     constraints: Optional[Dict[str, float]] = Field(
         None,
         description=f"Optional hard upper bounds keyed by {list(CONSTRAINT_KEYS)}",
@@ -81,13 +83,11 @@ class GenerateExperimentsRequest(BaseModel):
     def _validate_constraints(cls, value: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
         if not value:
             return None
-        unknown = [key for key in value if key not in CONSTRAINT_KEYS]
-        if unknown:
-            raise ValueError(f"unknown constraint key(s) {unknown}; allowed: {list(CONSTRAINT_KEYS)}")
         for key, ceiling in value.items():
             if not isinstance(ceiling, (int, float)):
                 raise ValueError(f"constraint {key} must be numeric")
         return value
+
 
 
 class GenerateExperimentsResponse(BaseModel):
@@ -99,25 +99,40 @@ class GenerateExperimentsResponse(BaseModel):
     disclaimer: str
 
 
-class SimulationRequest(ExperimentParams):
-    """Request body for the virtual reactor."""
+class SimulationRequest(BaseModel):
+    """Request body for the virtual reactor across all domains."""
+
+    model_config = ConfigDict(extra="allow")
 
     speed: float = Field(1.0, gt=0.0, le=8.0, description="Playback multiplier for the timeline")
+    domain: Optional[str] = Field("reaction_yield", description="Domain ID")
+    temperature: Optional[float] = None
+    pressure: Optional[float] = None
+    catalyst: Optional[str] = None
+    concentration: Optional[float] = None
+    reaction_time: Optional[float] = None
 
 
 class SimulationResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     experiment: Dict[str, Any]
-    predicted_yield: float
-    observed_yield: float
+    predicted_yield: Optional[float] = None
+    observed_yield: Optional[float] = None
+    predicted_target: Optional[float] = None
+    observed_target: Optional[float] = None
+    uncertainty_std: Optional[float] = None
+    domain: Optional[str] = None
+    target_unit: Optional[str] = None
     prediction_error: float
     stages: List[Dict[str, Any]]
     frames: List[Dict[str, Any]]
     total_duration_ms: int
     frame_interval_ms: int
-    factor_contributions: Dict[str, float]
+    factor_contributions: Optional[Dict[str, float]] = Field(default_factory=dict)
     safety: Dict[str, Any]
     summary: str
-    units: Dict[str, str]
+    units: Optional[Dict[str, str]] = Field(default_factory=dict)
     disclaimer: str
 
 
@@ -132,6 +147,8 @@ class ResearchRequest(BaseModel):
 
     research_question: str = Field(..., min_length=3, max_length=500)
     num_experiments: int = Field(5, ge=1, le=20)
+    domain: Optional[str] = Field("reaction_yield", description="Domain ID")
+    papers: Optional[List[Dict[str, Any]]] = Field(None, description="Selected academic research papers for context")
     constraints: Optional[Dict[str, float]] = None
     include_simulation: bool = Field(True, description="Also run the top candidate through the virtual reactor")
     include_comparison: bool = Field(
@@ -151,6 +168,7 @@ class ResearchResponse(BaseModel):
     research_objective: Dict[str, Any]
     identified_variables: List[Dict[str, Any]]
     retrieved_knowledge: List[Dict[str, Any]]
+    relevant_papers: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     candidate_experiments: List[Dict[str, Any]]
     search: Optional[Dict[str, Any]] = None
     ranking: List[Dict[str, Any]]

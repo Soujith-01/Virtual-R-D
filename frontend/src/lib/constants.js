@@ -1,5 +1,219 @@
 export const DEMO_QUESTION = 'Maximize reaction yield while minimizing reaction time.'
 
+export const DOMAINS = {
+  reaction_yield: {
+    id: 'reaction-yield',
+    label: 'Reaction Yield Optimization',
+    icon: '🧪',
+    accentColor: 'cyan',
+    target: 'Reaction Yield (%)',
+    targetUnit: '%',
+    tagline: 'Optimize reaction conditions to maximize predicted yield.',
+    description: 'The AI generates candidate experiments by searching the design space, predicts yield for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
+    variables: ['Temperature (°C)', 'Pressure (bar)', 'Catalyst (A/B/C/D)', 'Concentration (M)', 'Reaction time (min)'],
+    featureKeys: ['temperature', 'pressure', 'catalyst', 'concentration', 'reaction_time'],
+    units: { temperature: '°C', pressure: 'bar', catalyst: '', concentration: 'M', reaction_time: 'min' },
+    defaultObjective: 'Maximize reaction yield while minimizing reaction time.',
+    objectives: [
+      { label: 'Yield vs time', objective: 'Maximize reaction yield while minimizing reaction time.' },
+      { label: 'Max yield', objective: 'Maximise yield at any cost, favouring the highest conversion achievable.' },
+      { label: 'Low energy', objective: 'Maximize yield while minimizing temperature and energy demand.' },
+      { label: 'Mild pressure', objective: 'Maximize reaction yield while minimizing pressure and equipment cost.' },
+      { label: 'Robust process', objective: 'Maximize yield while minimizing risk and keeping the process robust and stable.' },
+    ],
+    stages: [
+      { key: 'INITIALIZING', label: 'Initializing', icon: '❄', description: 'Sealing vessel, purging headspace, sensor checks' },
+      { key: 'HEATING', label: 'Heating', icon: '🔥', description: 'Ramping jacket temperature to set-point' },
+      { key: 'STABILIZING', label: 'Stabilizing', icon: '◎', description: 'Holding set-point, checking thermal drift' },
+      { key: 'REACTION', label: 'Reaction', icon: '⚗', description: 'Catalyst charged, monitoring conversion' },
+      { key: 'ANALYZING', label: 'Analyzing', icon: '🔍', description: 'Quenching, sampling, quantifying product' },
+      { key: 'COMPLETE', label: 'Complete', icon: '✓', description: 'Run finished, results archived' },
+    ],
+    simulatorLabels: {
+      predicted: 'Predicted yield',
+      observed: 'Simulated yield',
+      temp: 'Temperature',
+      pressure: 'Pressure',
+    },
+  },
+  solar_efficiency: {
+    id: 'solar-efficiency',
+    label: 'Solar Panel Efficiency',
+    icon: '☀️',
+    accentColor: 'amber',
+    target: 'Energy Conversion Efficiency (%)',
+    targetUnit: '%',
+    tagline: 'Optimize solar cell parameters for maximum energy conversion.',
+    description: 'The AI generates candidate experiments by searching the design space, predicts efficiency for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
+    variables: ['Cell Thickness (nm)', 'Doping Concentration (cm⁻³)', 'Annealing Temperature (°C)', 'Light Intensity (lux)', 'Operating Temperature (°C)'],
+    featureKeys: ['cell_thickness_nm', 'doping_concentration', 'annealing_temperature_c', 'light_intensity_lux', 'operating_temperature_c'],
+    units: { cell_thickness_nm: 'nm', doping_concentration: 'cm⁻³', annealing_temperature_c: '°C', light_intensity_lux: 'lux', operating_temperature_c: '°C' },
+    defaultObjective: 'Maximize solar energy conversion efficiency while minimizing operating temperature.',
+    objectives: [
+      { label: 'Max efficiency', objective: 'Maximize solar energy conversion efficiency at any cost.' },
+      { label: 'Low temp operation', objective: 'Maximize solar efficiency while minimizing operating temperature.' },
+      { label: 'Balanced design', objective: 'Maximize efficiency while keeping annealing temperature moderate.' },
+    ],
+    stages: [
+      { key: 'INITIALIZE', label: 'Initialize', icon: '⚡', description: 'Setting up cell parameters and environmental controls' },
+      { key: 'SET_ENVIRONMENT', label: 'Set Environment', icon: '🌡️', description: 'Configuring temperature and light conditions' },
+      { key: 'APPLY_LIGHT', label: 'Apply Light', icon: '☀️', description: 'Shining light source and measuring response' },
+      { key: 'MEASURE_OUTPUT', label: 'Measure Output', icon: '📊', description: 'Recording voltage, current and efficiency' },
+      { key: 'ANALYZE', label: 'Analyze', icon: '🔬', description: 'Analyzing cell performance data' },
+      { key: 'COMPLETE', label: 'Complete', icon: '✓', description: 'Run finished, results recorded' },
+    ],
+    simulatorLabels: {
+      predicted: 'Predicted efficiency',
+      observed: 'Simulated efficiency',
+      temp: 'Cell Temperature',
+      light: 'Light Intensity',
+    },
+  },
+  plant_growth: {
+    id: 'plant-growth',
+    label: 'Plant Growth Optimization',
+    icon: '🌱',
+    accentColor: 'emerald',
+    target: 'Biomass Yield (g)',
+    targetUnit: 'g',
+    tagline: 'Optimize growth conditions for maximum plant biomass production.',
+    description: 'The AI generates candidate experiments by searching the design space, predicts biomass for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
+    variables: ['Light Intensity (lux)', 'CO₂ Concentration (ppm)', 'Nutrient Concentration (mM)', 'Temperature (°C)', 'Water Supply (ml/day)'],
+    featureKeys: ['light_intensity_lux', 'co2_concentration_ppm', 'nutrient_concentration_mm', 'temperature_c', 'water_supply_ml_day'],
+    units: { light_intensity_lux: 'lux', co2_concentration_ppm: 'ppm', nutrient_concentration_mm: 'mM', temperature_c: '°C', water_supply_ml_day: 'ml/day' },
+    defaultObjective: 'Maximize biomass yield while minimizing water consumption.',
+    objectives: [
+      { label: 'Max biomass', objective: 'Maximize plant biomass yield at any cost.' },
+      { label: 'Water efficient', objective: 'Maximize biomass while minimizing water consumption.' },
+      { label: 'Low resource', objective: 'Maximize biomass while minimizing light and nutrient usage.' },
+    ],
+    stages: [
+      { key: 'PREPARE_ENVIRONMENT', label: 'Prepare Environment', icon: '🏠', description: 'Setting up growth chamber conditions' },
+      { key: 'SET_LIGHT', label: 'Set Light', icon: '💡', description: 'Configuring light intensity and spectrum' },
+      { key: 'SET_CO2', label: 'Set CO₂', icon: '💨', description: 'Adjusting CO₂ concentration' },
+      { key: 'APPLY_NUTRIENTS', label: 'Apply Nutrients', icon: '🧪', description: 'Adding nutrient solution' },
+      { key: 'WATERING', label: 'Watering', icon: '💧', description: 'Setting water supply schedule' },
+      { key: 'GROWTH_SIMULATION', label: 'Growth Simulation', icon: '🌿', description: 'Simulating plant growth over time' },
+      { key: 'ANALYZE', label: 'Analyze', icon: '🔬', description: 'Measuring biomass and health indicators' },
+      { key: 'COMPLETE', label: 'Complete', icon: '✓', description: 'Growth run complete, results recorded' },
+    ],
+    simulatorLabels: {
+      predicted: 'Predicted biomass',
+      observed: 'Simulated biomass',
+      temp: 'Temperature',
+      light: 'Light Intensity',
+    },
+  },
+  battery_performance: {
+    id: 'battery-performance',
+    label: 'Battery Performance',
+    icon: '🔋',
+    accentColor: 'violet',
+    target: 'Capacity Retention (%)',
+    targetUnit: '%',
+    tagline: 'Optimize battery operating conditions for maximum capacity retention.',
+    description: 'The AI generates candidate experiments by searching the design space, predicts capacity retention for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
+    variables: ['Electrolyte Concentration (M)', 'Charging Rate (C)', 'Operating Temperature (°C)', 'Discharge Rate (C)', 'Cycle Count'],
+    featureKeys: ['electrolyte_concentration_m', 'charging_rate_c', 'operating_temperature_c', 'discharge_rate_c', 'cycle_count'],
+    units: { electrolyte_concentration_m: 'M', charging_rate_c: 'C', operating_temperature_c: '°C', discharge_rate_c: 'C', cycle_count: 'cycles' },
+    defaultObjective: 'Maximize capacity retention while minimizing charging stress.',
+    objectives: [
+      { label: 'Max retention', objective: 'Maximize battery capacity retention at any cost.' },
+      { label: 'Low stress', objective: 'Maximize capacity retention while minimizing charging rate.' },
+      { label: 'Temp optimized', objective: 'Maximize retention while keeping operating temperature mild.' },
+    ],
+    stages: [
+      { key: 'INITIALIZE_CELL', label: 'Initialize Cell', icon: '🔌', description: 'Preparing battery cell for test' },
+      { key: 'SET_TEMPERATURE', label: 'Set Temperature', icon: '🌡️', description: 'Stabilizing operating temperature' },
+      { key: 'CHARGE', label: 'Charge', icon: '⚡', description: 'Charging cell at specified rate' },
+      { key: 'REST', label: 'Rest', icon: '💤', description: 'Rest period for cell stabilization' },
+      { key: 'DISCHARGE', label: 'Discharge', icon: '🔋', description: 'Discharging cell at specified rate' },
+      { key: 'CYCLE_ANALYSIS', label: 'Cycle Analysis', icon: '📈', description: 'Analyzing cycle performance data' },
+      { key: 'COMPLETE', label: 'Complete', icon: '✓', description: 'Test complete, capacity retention calculated' },
+    ],
+    simulatorLabels: {
+      predicted: 'Predicted retention',
+      observed: 'Simulated retention',
+      temp: 'Temperature',
+      voltage: 'Voltage',
+    },
+  },
+  water_purification: {
+    id: 'water-purification',
+    label: 'Water Purification',
+    icon: '💧',
+    accentColor: 'sky',
+    target: 'Turbidity Removal (%)',
+    targetUnit: '%',
+    tagline: 'Optimize water treatment conditions for maximum turbidity removal.',
+    description: 'The AI generates candidate experiments by searching the design space, predicts turbidity removal for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
+    variables: ['Coagulant Dose (mg/L)', 'pH', 'Contact Time (min)', 'Temperature (°C)', 'Mixing Speed (rpm)'],
+    featureKeys: ['coagulant_dose_mg_l', 'ph', 'contact_time_min', 'temperature_c', 'mixing_speed_rpm'],
+    units: { coagulant_dose_mg_l: 'mg/L', ph: '', contact_time_min: 'min', temperature_c: '°C', mixing_speed_rpm: 'rpm' },
+    defaultObjective: 'Maximize turbidity removal while minimizing treatment time and coagulant usage.',
+    objectives: [
+      { label: 'Max removal', objective: 'Maximize turbidity removal at any cost.' },
+      { label: 'Quick treatment', objective: 'Maximize turbidity removal while minimizing contact time.' },
+      { label: 'Low chemical', objective: 'Maximize removal while minimizing coagulant dose.' },
+    ],
+    stages: [
+      { key: 'PREPARE_SAMPLE', label: 'Prepare Sample', icon: '🚰', description: 'Collecting and measuring raw water sample' },
+      { key: 'ADD_COAGULANT', label: 'Add Coagulant', icon: '🧪', description: 'Dosing coagulant into water sample' },
+      { key: 'ADJUST_PH', label: 'Adjust pH', icon: '🧪', description: 'Adjusting pH to optimal level' },
+      { key: 'MIX', label: 'Mix', icon: '🔄', description: 'Mixing water at specified speed' },
+      { key: 'CONTACT_PERIOD', label: 'Contact Period', icon: '⏱️', description: 'Maintaining contact time for coagulation' },
+      { key: 'MEASURE_TURBIDITY', label: 'Measure Turbidity', icon: '📊', description: 'Measuring final turbidity levels' },
+      { key: 'ANALYZE', label: 'Analyze', icon: '🔬', description: 'Analyzing purification effectiveness' },
+      { key: 'COMPLETE', label: 'Complete', icon: '✓', description: 'Purification run complete, removal calculated' },
+    ],
+    simulatorLabels: {
+      predicted: 'Predicted removal',
+      observed: 'Simulated removal',
+      turbidity: 'Turbidity',
+      dose: 'Coagulant Dose',
+    },
+  },
+}
+
+DOMAINS['reaction-yield'] = DOMAINS.reaction_yield
+DOMAINS['solar-efficiency'] = DOMAINS.solar_efficiency
+DOMAINS['plant-growth'] = DOMAINS.plant_growth
+DOMAINS['battery-performance'] = DOMAINS.battery_performance
+DOMAINS['water-purification'] = DOMAINS.water_purification
+
+export const EXPERIMENT_TEMPLATES = [
+  {
+    id: 'reaction-yield',
+    ...DOMAINS.reaction_yield,
+    status: 'live',
+    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
+  },
+  {
+    id: 'solar-efficiency',
+    ...DOMAINS.solar_efficiency,
+    status: 'live',
+    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
+  },
+  {
+    id: 'plant-growth',
+    ...DOMAINS.plant_growth,
+    status: 'live',
+    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
+  },
+  {
+    id: 'battery-performance',
+    ...DOMAINS.battery_performance,
+    status: 'live',
+    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
+  },
+  {
+    id: 'water-purification',
+    ...DOMAINS.water_purification,
+    status: 'live',
+    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
+  },
+]
+
 export const EXAMPLE_OBJECTIVES = [
   {
     label: 'Yield vs time',
@@ -28,13 +242,12 @@ export const EXAMPLE_OBJECTIVES = [
   },
 ]
 
-/** The agent pipeline as reported by the backend agent_trace. */
 export const PIPELINE_STEPS = [
   { key: 'objective', label: 'Interpret objective', detail: 'Parse the research question into explicit priorities and weights' },
   { key: 'variables', label: 'Identify variables', detail: 'Decide which experimental variables drive the objective' },
   { key: 'knowledge', label: 'Retrieve knowledge', detail: 'Semantic search across the scientific knowledge base' },
   { key: 'generate', label: 'Generate experiments', detail: 'Model-guided search over the design space' },
-  { key: 'predict', label: 'Predict outcomes', detail: 'Random Forest surrogate predicts yield for every candidate' },
+  { key: 'predict', label: 'Predict outcomes', detail: 'Random Forest surrogate predicts target for every candidate' },
   { key: 'compare', label: 'Compare outcomes', detail: 'Score candidates against baseline conditions' },
   { key: 'rank', label: 'Rank candidates', detail: 'Transparent objective-weighted scoring' },
   { key: 'explain', label: 'Explain result', detail: 'Generate the grounded research narrative' },
@@ -43,15 +256,35 @@ export const PIPELINE_STEPS = [
 ]
 
 export const STAGE_META = {
-  INITIALIZING: { label: 'Initializing', tone: 'slate', icon: '❄', description: 'Sealing vessel, purging headspace, sensor checks' },
-  HEATING: { label: 'Heating', tone: 'amber', icon: '🔥', description: 'Ramping jacket temperature to set-point' },
-  STABILIZING: { label: 'Stabilizing', tone: 'violet', icon: '◎', description: 'Holding set-point, checking thermal drift' },
-  REACTION: { label: 'Reaction', tone: 'cyan', icon: '⚗', description: 'Catalyst charged, monitoring conversion' },
-  ANALYZING: { label: 'Analyzing', tone: 'sky', icon: '🔍', description: 'Quenching, sampling, quantifying product' },
-  COMPLETE: { label: 'Complete', tone: 'emerald', icon: '✓', description: 'Run finished, results archived' },
+  INITIALIZING: { label: 'Initializing', tone: 'slate', icon: '❄' },
+  HEATING: { label: 'Heating', tone: 'amber', icon: '🔥' },
+  STABILIZING: { label: 'Stabilizing', tone: 'violet', icon: '◎' },
+  REACTION: { label: 'Reaction', tone: 'cyan', icon: '⚗' },
+  ANALYZING: { label: 'Analyzing', tone: 'sky', icon: '🔍' },
+  COMPLETE: { label: 'Complete', tone: 'emerald', icon: '✓' },
+  INITIALIZE: { label: 'Initialize', tone: 'slate', icon: '⚡' },
+  SET_ENVIRONMENT: { label: 'Set Environment', tone: 'amber', icon: '🌡️' },
+  APPLY_LIGHT: { label: 'Apply Light', tone: 'yellow', icon: '☀️' },
+  MEASURE_OUTPUT: { label: 'Measure Output', tone: 'cyan', icon: '📊' },
+  PREPARE_ENVIRONMENT: { label: 'Prepare Environment', tone: 'slate', icon: '🏠' },
+  SET_LIGHT: { label: 'Set Light', tone: 'yellow', icon: '💡' },
+  SET_CO2: { label: 'Set CO₂', tone: 'emerald', icon: '💨' },
+  APPLY_NUTRIENTS: { label: 'Apply Nutrients', tone: 'green', icon: '🧪' },
+  WATERING: { label: 'Watering', tone: 'blue', icon: '💧' },
+  GROWTH_SIMULATION: { label: 'Growth Simulation', tone: 'emerald', icon: '🌿' },
+  INITIALIZE_CELL: { label: 'Initialize Cell', tone: 'slate', icon: '🔌' },
+  SET_TEMPERATURE: { label: 'Set Temperature', tone: 'amber', icon: '🌡️' },
+  CHARGE: { label: 'Charge', tone: 'yellow', icon: '⚡' },
+  REST: { label: 'Rest', tone: 'violet', icon: '💤' },
+  DISCHARGE: { label: 'Discharge', tone: 'red', icon: '🔋' },
+  CYCLE_ANALYSIS: { label: 'Cycle Analysis', tone: 'violet', icon: '📈' },
+  PREPARE_SAMPLE: { label: 'Prepare Sample', tone: 'slate', icon: '🚰' },
+  ADD_COAGULANT: { label: 'Add Coagulant', tone: 'blue', icon: '🧪' },
+  ADJUST_PH: { label: 'Adjust pH', tone: 'cyan', icon: '🧪' },
+  MIX: { label: 'Mix', tone: 'sky', icon: '🔄' },
+  CONTACT_PERIOD: { label: 'Contact Period', tone: 'blue', icon: '⏱️' },
+  MEASURE_TURBIDITY: { label: 'Measure Turbidity', tone: 'cyan', icon: '📊' },
 }
-
-export const STAGE_ORDER = ['INITIALIZING', 'HEATING', 'STABILIZING', 'REACTION', 'ANALYZING', 'COMPLETE']
 
 export const CATALYST_LABELS = {
   A: 'Catalyst A',
@@ -69,104 +302,65 @@ export const PARAM_META = [
   { key: 'reaction_time', label: 'Reaction time', unit: 'min', step: 5, min: 5, max: 180, decimals: 0 },
 ]
 
-/**
- * Experiment templates for the Choose Experiment screen.
- * status: 'live'      → uses the trained Random Forest model (reaction yield only)
- * status: 'prototype' → UI placeholder; shows domain-extension info, no fake predictions
- * status: 'custom'    → free-text research objective entry
- */
-export const EXPERIMENT_TEMPLATES = [
-  {
-    id: 'reaction-yield',
-    icon: '🧪',
-    status: 'live',
-    label: 'Reaction Yield Optimization',
-    tagline: 'Optimize reaction conditions to maximize predicted yield.',
-    description:
-      'The AI generates 5 candidate experiments by searching the design space, predicts yield for each using the trained Random Forest model, then ranks them by a transparent scoring function.',
-    domain: 'Chemical reaction engineering',
-    variables: ['Temperature (°C)', 'Pressure (bar)', 'Catalyst (A/B/C/D)', 'Concentration (M)', 'Reaction time (min)'],
-    target: 'Predicted Yield (%)',
-    model: 'RandomForestRegressor — trained on synthetic_prototype_v1',
-    defaultObjective: 'Maximize reaction yield while minimizing reaction time.',
-    objectives: [
-      { label: 'Yield vs time', objective: 'Maximize reaction yield while minimizing reaction time.' },
-      { label: 'Max yield', objective: 'Maximise yield at any cost, favouring the highest conversion achievable.' },
-      { label: 'Low energy', objective: 'Maximize yield while minimizing temperature and energy demand.' },
-      { label: 'Mild pressure', objective: 'Maximize reaction yield while minimizing pressure and equipment cost.' },
-      { label: 'Robust process', objective: 'Maximize yield while minimizing risk and keeping the process robust and stable.' },
-    ],
-    accentColor: 'cyan',
+export const ACCENT_COLORS = {
+  cyan: {
+    border: 'border-cyan-300/30 hover:border-cyan-300/60',
+    glow: 'bg-cyan-400/8',
+    hoverGlow: 'group-hover:bg-cyan-400/18',
+    badge: 'bg-cyan-400/15 text-cyan-200 border-cyan-300/25',
+    icon: 'border-cyan-300/30 bg-cyan-400/10',
+    btn: '',
+    tag: 'border-cyan-400/20 text-cyan-300/80',
+    dot: 'bg-cyan-400',
   },
-  {
-    id: 'solar-panel',
-    icon: '☀️',
-    status: 'prototype',
-    label: 'Solar Panel Efficiency',
-    tagline: 'Explore conditions that affect solar energy conversion efficiency.',
-    description:
-      'This template demonstrates how the platform could be extended to photovoltaic research. A domain-specific trained model — such as one trained on cell manufacturing parameters — would be required for validated predictions.',
-    domain: 'Photovoltaic engineering',
-    variables: ['Cell thickness (nm)', 'Doping concentration', 'Annealing temperature (°C)', 'Coating material', 'Exposure time (h)'],
-    target: 'Energy conversion efficiency (%)',
-    model: 'Domain-specific model required — not yet trained',
-    accentColor: 'amber',
+  amber: {
+    border: 'border-amber-300/25 hover:border-amber-300/50',
+    glow: 'bg-amber-400/6',
+    hoverGlow: 'group-hover:bg-amber-400/14',
+    badge: 'bg-amber-400/10 text-amber-200 border-amber-300/20',
+    icon: 'border-amber-300/30 bg-amber-400/10',
+    btn: '!border-amber-300/25 !text-amber-100 hover:!bg-amber-400/10',
+    tag: 'border-amber-400/20 text-amber-300/80',
+    dot: 'bg-amber-400',
   },
-  {
-    id: 'plant-growth',
-    icon: '🌱',
-    status: 'prototype',
-    label: 'Plant Growth Optimization',
-    tagline: 'Explore growth-condition optimization for agricultural research.',
-    description:
-      'This template demonstrates how the platform could be extended to agronomy. A model trained on greenhouse or field trial data would be required for validated predictions.',
-    domain: 'Agricultural science / agronomy',
-    variables: ['Light intensity (lux)', 'CO₂ concentration (ppm)', 'Nutrient concentration (mM)', 'Temperature (°C)', 'Humidity (%)'],
-    target: 'Biomass yield (g)',
-    model: 'Domain-specific model required — not yet trained',
-    accentColor: 'emerald',
+  emerald: {
+    border: 'border-emerald-300/25 hover:border-emerald-300/50',
+    glow: 'bg-emerald-400/6',
+    hoverGlow: 'group-hover:bg-emerald-400/14',
+    badge: 'bg-emerald-400/10 text-emerald-200 border-emerald-300/20',
+    icon: 'border-emerald-300/30 bg-emerald-400/10',
+    btn: '!border-emerald-300/25 !text-emerald-100 hover:!bg-emerald-400/10',
+    tag: 'border-emerald-400/20 text-emerald-300/80',
+    dot: 'bg-emerald-400',
   },
-  {
-    id: 'battery-performance',
-    icon: '🔋',
-    status: 'prototype',
-    label: 'Battery Performance',
-    tagline: 'Explore battery operating conditions for energy storage research.',
-    description:
-      'This template demonstrates how the platform could be extended to battery science. A model trained on electrochemical cell data would be required for validated predictions.',
-    domain: 'Electrochemical engineering',
-    variables: ['Electrolyte concentration (M)', 'Charging rate (C)', 'Operating temperature (°C)', 'Electrode material', 'Cycle count'],
-    target: 'Capacity retention (%)',
-    model: 'Domain-specific model required — not yet trained',
-    accentColor: 'violet',
+  violet: {
+    border: 'border-violet-300/25 hover:border-violet-300/50',
+    glow: 'bg-violet-400/6',
+    hoverGlow: 'group-hover:bg-violet-400/14',
+    badge: 'bg-violet-400/10 text-violet-200 border-violet-300/20',
+    icon: 'border-violet-300/30 bg-violet-400/10',
+    btn: '!border-violet-300/25 !text-violet-100 hover:!bg-violet-400/10',
+    tag: 'border-violet-400/20 text-violet-300/80',
+    dot: 'bg-violet-400',
   },
-  {
-    id: 'water-purification',
-    icon: '💧',
-    status: 'prototype',
-    label: 'Water Purification',
-    tagline: 'Explore purification-condition optimization for water treatment.',
-    description:
-      'This template demonstrates how the platform could be extended to environmental engineering. A model trained on filtration or coagulation data would be required for validated predictions.',
-    domain: 'Environmental / water engineering',
-    variables: ['Coagulant dose (mg/L)', 'pH', 'Contact time (min)', 'Filtration rate (m/h)', 'Membrane pore size (μm)'],
-    target: 'Turbidity removal (%)',
-    model: 'Domain-specific model required — not yet trained',
-    accentColor: 'sky',
+  sky: {
+    border: 'border-sky-300/25 hover:border-sky-300/50',
+    glow: 'bg-sky-400/6',
+    hoverGlow: 'group-hover:bg-sky-400/14',
+    badge: 'bg-sky-400/10 text-sky-200 border-sky-300/20',
+    icon: 'border-sky-300/30 bg-sky-400/10',
+    btn: '!border-sky-300/25 !text-sky-100 hover:!bg-sky-400/10',
+    tag: 'border-sky-400/20 text-sky-300/80',
+    dot: 'bg-sky-400',
   },
-  {
-    id: 'custom',
-    icon: '🔬',
-    status: 'custom',
-    label: 'Custom Research',
-    tagline: 'Enter your own research objective and explore the AI workflow.',
-    description:
-      'Enter any research objective in plain language. The AI reasoning pipeline and virtual simulation will run using the reaction yield model. Results are valid only for reaction-yield optimization — other domains would need a domain-specific trained model.',
-    domain: 'User defined',
-    variables: ['Temperature', 'Pressure', 'Catalyst', 'Concentration', 'Reaction time'],
-    target: 'Predicted Yield (%) — reaction yield model only',
-    model: 'RandomForestRegressor — reaction yield only',
-    defaultObjective: '',
-    accentColor: 'slate',
+  slate: {
+    border: 'border-slate-500/25 hover:border-slate-400/40',
+    glow: 'bg-slate-500/5',
+    hoverGlow: 'group-hover:bg-slate-400/10',
+    badge: 'bg-slate-500/10 text-slate-300 border-slate-400/20',
+    icon: 'border-slate-500/30 bg-slate-500/10',
+    btn: '!border-slate-400/25 !text-slate-200 hover:!bg-slate-400/10',
+    tag: 'border-slate-400/20 text-slate-400',
+    dot: 'bg-slate-400',
   },
-]
+}

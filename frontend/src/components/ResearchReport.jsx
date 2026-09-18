@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
 import { Button, GlassCard, KeyValue, Meter, Pill, SectionTitle, TEXT_TONES } from './ui'
 import { KnowledgePanel, ModelPanel } from './KnowledgePanel'
+import { DOMAINS, CATALYST_LABELS, PARAM_META } from '../lib/constants'
 import { AnchorComparisonChart } from './Charts'
-import { CATALYST_LABELS, PARAM_META } from '../lib/constants'
-import { num, paramValue, riskTone, scoreTone, yieldTone } from '../lib/format'
+import { num, paramValue, riskTone, scoreTone, yieldTone, getPredictionKey, getTargetLabel, getTargetUnit, getStageLabels } from '../lib/format'
 
 function download(filename, payload) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -30,14 +30,53 @@ const PIPELINE_LABELS = {
   simulate: 'Virtual experiment',
 }
 
-export default function ResearchReport({ research, onSimulate, onReset }) {
-  if (!research) return null
+export default function ResearchReport({ research, onSimulate, onReset, activeResearchPapers = [] }) {
+  if (!research) {
+    return (
+      <GlassCard className="p-10 text-center max-w-xl mx-auto my-12 space-y-4">
+        <div className="text-4xl">📄</div>
+        <div className="text-lg font-semibold text-slate-100">No Research Report Available</div>
+        <p className="text-xs leading-relaxed text-slate-400">
+          Run an AI experimental discovery pipeline or select an experiment template to generate a full research report with model predictions and recommendations.
+        </p>
+        <div className="pt-2">
+          <Button onClick={onReset}>
+            🔬 Start New Experiment
+          </Button>
+        </div>
+      </GlassCard>
+    )
+  }
 
   const best = research.recommended_experiment
   const objective = research.research_objective || {}
   const explanation = research.explanation || {}
   const next = research.next_suggested_experiment || {}
   const model = research.model || {}
+  const domainId = research.domain || 'reaction-yield'
+  const domain = DOMAINS[domainId] || DOMAINS[domainId.replace(/_/g, '-')] || DOMAINS['reaction-yield']
+
+  const predKey = getPredictionKey(domainId)
+  const targetLabel = getTargetLabel(domainId, true)
+  const targetUnit = getTargetUnit(domainId)
+
+  // Get prediction value from domain-specific key
+  const getPredValue = (exp) => {
+    return exp[predKey] || exp.predicted_yield || exp.predicted_efficiency ||
+      exp.predicted_biomass_yield || exp.predicted_capacity_retention ||
+      exp.predicted_turbidity_removal || 0
+  }
+
+  const getPredValueForDisplay = (exp) => {
+    const val = getPredValue(exp)
+    return num(val, 1)
+  }
+
+  const relevantPapersList = (research.relevant_papers && research.relevant_papers.length > 0)
+    ? research.relevant_papers
+    : (activeResearchPapers && activeResearchPapers.length > 0)
+      ? activeResearchPapers
+      : (research.retrieved_knowledge || []).filter((k) => k.is_paper)
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 px-5 pb-20">
@@ -56,10 +95,11 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
                 {explanation.used_external_llm ? `LLM · ${explanation.generated_by}` : 'template reasoning'}
               </Pill>
               <Pill tone="emerald">{research.candidate_experiments?.length ?? 0} candidates</Pill>
+              <Pill tone="amber">{domain?.label || 'Reaction Yield'}</Pill>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" onClick={() => download(`virtual-rd-lab-${research.run_id || 'run'}.json`, research)}>
+            <Button variant="ghost" onClick={() => download(`nucleus-ai-${research.run_id || 'run'}.json`, research)}>
               ⭳ Export JSON
             </Button>
             <Button onClick={onReset}>New research</Button>
@@ -87,7 +127,7 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
               {Object.entries(objective.weights || {}).map(([key, weight]) => (
                 <div key={key}>
                   <div className="flex justify-between text-[11px]">
-                    <span className="capitalize text-slate-400">{key}</span>
+                    <span className="capitalize text-slate-400">{key.replace(/_/g, ' ')}</span>
                     <span className="mono text-cyan-200">{(weight * 100).toFixed(1)}%</span>
                   </div>
                   <Meter className="mt-1" value={weight * 100} tone="cyan" height="h-1" />
@@ -108,7 +148,7 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
                     {variable.optimal_range?.length === 2 && (
                       <span className="text-slate-500">
                         {' '}
-                        (design range {num(variable.optimal_range[0], 2)}–{num(variable.optimal_range[1], 2)})
+                        (design range {num(variable.optimal_range[0], 2)}–{num(variable.optimal_range[1], 2)}))
                       </span>
                     )}
                   </li>
@@ -124,43 +164,51 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
           <SectionTitle
             eyebrow="Recommendation"
             title="Best candidate experiment"
-            right={<Pill tone={scoreTone(best.score)}>score {best.score.toFixed(1)} / 100</Pill>}
+            right={<Pill tone={scoreTone(best.score)}>score {best.score?.toFixed(1) || '—'} / 100</Pill>}
           />
 
           <div className="mt-5 flex flex-wrap items-end gap-6">
             <div>
-              <div className="label-caps text-slate-500">Predicted yield</div>
+              <div className="label-caps text-slate-500">Predicted {targetLabel}</div>
               <div className="flex items-baseline">
                 <motion.span
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`mono text-5xl font-bold ${TEXT_TONES[yieldTone(best.predicted_yield)]}`}
+                  className={`mono text-5xl font-bold ${TEXT_TONES[yieldTone(getPredValue(best))]}`}
                 >
-                  {num(best.predicted_yield, 1)}
+                  {getPredValueForDisplay(best)}
                 </motion.span>
-                <span className="ml-1 text-lg text-slate-400">%</span>
+                <span className="ml-1 text-lg text-slate-400">{targetUnit}</span>
               </div>
               <div className="mono mt-1 text-[11px] text-slate-500">
-                approx. interval {num(best.interval_low, 1)}–{num(best.interval_high, 1)}% · ±
-                {num(best.uncertainty_std, 2)} sd
+                approx. interval {num(best.interval_low || 0, 1)}–{num(best.interval_high || 0, 1)}{targetUnit} · ±
+                {num(best.uncertainty_std || 0, 2)} sd
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Pill tone={riskTone(best.risk?.level)}>{best.risk?.level} risk</Pill>
-              <Pill tone="slate">{CATALYST_LABELS[best.catalyst] ?? best.catalyst}</Pill>
-              <Pill tone="cyan">{num(best.reaction_time, 0)} min hold</Pill>
+              <Pill tone={riskTone(best.risk?.level)}>{best.risk?.level || 'unknown'} risk</Pill>
+              <Pill tone="slate">{best.catalyst ? CATALYST_LABELS[best.catalyst] ?? best.catalyst : ''}</Pill>
+              <Pill tone="cyan">
+                {best.reaction_time ? `${num(best.reaction_time, 0)} min` :
+                 best.contact_time_min ? `${num(best.contact_time_min, 0)} min` : ''}
+              </Pill>
               <Pill tone={best.estimated_confidence >= 0.8 ? 'emerald' : 'amber'}>
-                confidence {best.estimated_confidence.toFixed(2)}
+                confidence {best.estimated_confidence?.toFixed(2) || '—'}
               </Pill>
             </div>
           </div>
 
+          {/* Parameter display based on domain */}
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {PARAM_META.map((meta) => (
-              <div key={meta.key} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2">
-                <div className="label-caps text-slate-500">{meta.label}</div>
-                <div className="mono mt-1 text-sm text-slate-100">{paramValue(meta.key, best[meta.key])}</div>
+            {(domain?.featureKeys || PARAM_META.map(m => m.key)).map((key) => (
+              <div key={key} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2">
+                <div className="label-caps text-slate-500">
+                  {domain?.featureLabels?.[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </div>
+                <div className="mono mt-1 text-sm text-slate-100">
+                  {paramValue(key, best?.[key], domainId)}
+                </div>
               </div>
             ))}
           </div>
@@ -170,8 +218,8 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => onSimulate(best)}>⚗ Run in virtual reactor</Button>
-            <Button variant="ghost" onClick={() => onSimulate(next)} disabled={!next?.temperature}>
+            <Button onClick={() => onSimulate(best)}>⚗ Run in virtual experiment</Button>
+            <Button variant="ghost" onClick={() => onSimulate(next)} disabled={!next?.temperature && !next?.cell_thickness_nm}>
               ▶ Try the next experiment
             </Button>
           </div>
@@ -195,12 +243,13 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
               <tr className="label-caps text-slate-500">
                 <th className="pb-2">#</th>
                 <th className="pb-2">ID</th>
-                <th className="pb-2">Temp</th>
-                <th className="pb-2">Pressure</th>
-                <th className="pb-2">Catalyst</th>
-                <th className="pb-2">Conc.</th>
-                <th className="pb-2">Time</th>
-                <th className="pb-2">Yield</th>
+                {/* Dynamic columns based on domain */}
+                {(domain?.featureKeys || []).slice(0, 5).map((key) => (
+                  <th key={key} className="pb-2">
+                    {domain?.featureLabels?.[key] || key.replace(/_/g, ' ')}
+                  </th>
+                ))}
+                <th className="pb-2">{targetLabel}</th>
                 <th className="pb-2">Score</th>
                 <th className="pb-2">Risk</th>
                 <th className="pb-2" />
@@ -211,13 +260,14 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
                 <tr key={row.id} className="text-slate-300 hover:bg-white/2">
                   <td className="mono py-2 text-slate-500">{row.rank}</td>
                   <td className="mono py-2 text-slate-100">{row.id}</td>
-                  <td className="mono py-2">{num(row.temperature, 0)}°C</td>
-                  <td className="mono py-2">{num(row.pressure, 1)} bar</td>
-                  <td className="py-2">{row.catalyst}</td>
-                  <td className="mono py-2">{num(row.concentration, 2)} M</td>
-                  <td className="mono py-2">{num(row.reaction_time, 0)} min</td>
-                  <td className={`mono py-2 ${TEXT_TONES[yieldTone(row.predicted_yield)]}`}>
-                    {num(row.predicted_yield, 1)}%
+                  {/* Dynamic feature columns */}
+                  {(domain?.featureKeys || []).slice(0, 5).map((key) => (
+                    <td key={key} className="mono py-2">
+                      {paramValue(key, row[key], domainId)}
+                    </td>
+                  ))}
+                  <td className={`mono py-2 ${TEXT_TONES[yieldTone(getPredValue(row))]}`}>
+                    {getPredValueForDisplay(row)}{targetUnit}
                   </td>
                   <td className="mono py-2 text-cyan-200">{num(row.score, 1)}</td>
                   <td className="py-2">
@@ -295,6 +345,89 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
         {research.comparison ? <AnchorComparisonChart comparison={research.comparison} /> : <div />}
       </div>
 
+      {/* --------------------- relevant research papers --------------------- */}
+      <GlassCard strong className="p-6">
+        <SectionTitle
+          eyebrow="Scientific literature"
+          title="Relevant research papers"
+          description="Peer-reviewed publications injected into the RAG retriever and model reasoning for this experimental campaign."
+          right={
+            <Pill tone="cyan" dot>
+              {relevantPapersList.length} Injected Paper{relevantPapersList.length === 1 ? '' : 's'}
+            </Pill>
+          }
+        />
+        {relevantPapersList.length > 0 ? (
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {relevantPapersList.map((paper, idx) => {
+              const authors = Array.isArray(paper.authors) ? paper.authors : []
+              const authorsDisplay = authors.slice(0, 3).join(', ') + (authors.length > 3 ? ` +${authors.length - 3} more` : '')
+              const isOA = paper.is_open_access || paper.isOpenAccess
+              const paperUrl = paper.url || (paper.doi ? `https://doi.org/${paper.doi}` : '')
+
+              return (
+                <div
+                  key={paper.paper_id || idx}
+                  className="rounded-xl border border-cyan-500/20 bg-slate-900/60 p-4 space-y-2.5 transition hover:border-cyan-500/40"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="px-2 py-0.5 rounded bg-white/10 text-cyan-200 font-mono text-[11px]">
+                      {paper.year || 'N/A'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {isOA ? 'Open Access' : 'Publisher'} · {paper.source || 'Semantic Scholar'}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-100 leading-snug">{paper.title}</h4>
+                  {authorsDisplay && (
+                    <div className="text-xs text-slate-400">
+                      Authors: <span className="text-slate-300">{authorsDisplay}</span>
+                    </div>
+                  )}
+                  {paper.doi && (
+                    <div className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                      <span>DOI:</span>
+                      <a
+                        href={`https://doi.org/${paper.doi}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-cyan-400 hover:underline truncate max-w-sm"
+                      >
+                        {paper.doi}
+                      </a>
+                    </div>
+                  )}
+                  {paper.abstract && (
+                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                      {paper.abstract}
+                    </p>
+                  )}
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+                    <span className="text-cyan-300 text-[11px] font-medium">
+                      {isOA ? 'Full-text research context' : 'Abstract-based research context'}
+                    </span>
+                    {paperUrl && (
+                      <a
+                        href={paperUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-300 hover:text-cyan-200 font-medium flex items-center gap-1"
+                      >
+                        View Paper ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/2 p-4 text-xs text-slate-400">
+            No external research papers were attached to this session. Default knowledge base was utilized.
+          </div>
+        )}
+      </GlassCard>
+
       {/* --------------------------- next experiment --------------------------- */}
       <GlassCard strong className="p-6">
         <SectionTitle
@@ -311,10 +444,14 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
             <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                  {PARAM_META.map((meta) => (
-                    <div key={meta.key} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2">
-                      <div className="label-caps text-slate-500">{meta.label}</div>
-                      <div className="mono mt-1 text-sm text-slate-100">{paramValue(meta.key, next[meta.key])}</div>
+                  {(domain?.featureKeys || []).map((key) => (
+                    <div key={key} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2">
+                      <div className="label-caps text-slate-500">
+                        {domain?.featureLabels?.[key] || key.replace(/_/g, ' ')}
+                      </div>
+                      <div className="mono mt-1 text-sm text-slate-100">
+                        {paramValue(key, next[key], domainId)}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -325,7 +462,7 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
                     <div className="flex flex-wrap gap-2">
                       {next.changed_variables.map((change) => (
                         <Pill key={change.variable} tone="cyan">
-                          {change.variable.replace('_', ' ')}: {String(change.from)} → {String(change.to)}
+                          {change.variable.replace(/_/g, ' ')}: {String(change.from)} → {String(change.to)}
                         </Pill>
                       ))}
                     </div>
@@ -334,9 +471,10 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <KeyValue label="Predicted yield">
-                  <span className={`mono ${TEXT_TONES[yieldTone(next.predicted_yield)]}`}>
-                    {num(next.predicted_yield, 1)}%
+                <KeyValue label={`Predicted ${targetLabel}`}>
+                  <span className={`mono ${TEXT_TONES[yieldTone(getPredValue(next))]}`}>
+                    {getPredValueForDisplay(next)}
+                    <span className="text-xs text-slate-500">{targetUnit}</span>
                   </span>
                 </KeyValue>
                 <KeyValue label="Score">
@@ -348,7 +486,7 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
                     </span>
                   </span>
                 </KeyValue>
-                <KeyValue label="Yield change">
+                <KeyValue label="Target change">
                   <span className="mono text-slate-200">
                     {next.yield_delta >= 0 ? '+' : ''}
                     {num(next.yield_delta, 1)} pts
@@ -418,11 +556,24 @@ export default function ResearchReport({ research, onSimulate, onReset }) {
           </ul>
 
           <div className="mt-5 grid grid-cols-2 gap-4 border-t border-white/5 pt-4 sm:grid-cols-3">
-            <KeyValue label="Model">{model.type}</KeyValue>
+            <KeyValue label="Model">{model.type || 'Random Forest'}</KeyValue>
+            <KeyValue label="Domain">{domain.label}</KeyValue>
             <KeyValue label="Dataset">
-              <span className="mono text-amber-200/80">{model.dataset_provenance}</span>
+              <span className="mono text-amber-200/80">{model.dataset_provenance || 'synthetic_prototype_v1'}</span>
             </KeyValue>
-            <KeyValue label="Features">{(model.features || []).length}</KeyValue>
+            <KeyValue label="Features">{(model.features || []).length || domain?.featureKeys?.length || 5}</KeyValue>
+            <KeyValue label="Target">{targetLabel}</KeyValue>
+            <KeyValue label="Status">
+              <span className="text-emerald-300">{model.status || 'READY'}</span>
+            </KeyValue>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2">
+            <p className="text-[10px] leading-relaxed text-amber-100/80">
+              ⚠️ <strong>Prototype warning:</strong> Models are trained on synthetic prototype datasets for
+              demonstration. Predictions are AI-generated hypotheses for experimental prioritization — not
+              validated laboratory measurements.
+            </p>
           </div>
         </GlassCard>
       </div>

@@ -419,14 +419,48 @@ class Retriever:
         }
 
     # --- retrieval ------------------------------------------------------ #
-    def retrieve(self, query: str, k: int | None = None) -> List[dict]:
-        """Return the ``k`` most similar chunks with their sources and scores."""
+    def retrieve(self, query: str, k: int | None = None, papers: Sequence[dict] | None = None) -> List[dict]:
+        """Return the ``k`` most similar chunks with their sources and scores, including injected research papers."""
         self.ensure_ready()
         k = int(k or settings.rag_top_k)
         query = (query or "").strip()
 
+        results: List[dict] = []
+
+        # Process injected user-selected papers first
+        if papers:
+            for idx, p in enumerate(papers):
+                title = (p.get("title") or "Research Paper").strip()
+                authors = ", ".join(str(a) for a in (p.get("authors") or [])[:3])
+                year = p.get("year") or ""
+                venue = p.get("venue") or ""
+                abstract = (p.get("abstract") or "").strip()
+                doi = p.get("doi") or ""
+                url = p.get("url") or ""
+                has_full_text = bool(p.get("has_full_text"))
+                context_type = "Full-text research context" if has_full_text else "Abstract-based research context"
+
+                text = f"[{context_type}] {title} ({authors}, {year}, {venue}). DOI: {doi}\n{abstract}"
+                results.append({
+                    "source": f"Research Paper: {title[:48]}..." if len(title) > 48 else f"Research Paper: {title}",
+                    "chunk_id": f"paper_{p.get('paper_id') or idx}",
+                    "similarity": round(0.95 - (idx * 0.02), 4),
+                    "text": text,
+                    "characters": len(text),
+                    "is_paper": True,
+                    "paper_id": p.get("paper_id"),
+                    "title": title,
+                    "authors": p.get("authors") or [],
+                    "year": p.get("year"),
+                    "venue": venue,
+                    "doi": doi,
+                    "url": url,
+                    "context_type": context_type,
+                    "open_access": bool(p.get("is_open_access")),
+                })
+
         if not query or not self.chunks or self.vectors is None or self.vectors.size == 0:
-            return []
+            return results
 
         query_vector = self.embedder.encode([query])  # type: ignore[union-attr]
         if query_vector.shape[1] != self.vectors.shape[1]:
@@ -444,7 +478,6 @@ class Retriever:
             top = np.argsort(-similarities)[:k]
             pairs = [(int(index), float(similarities[index])) for index in top]
 
-        results: List[dict] = []
         for index, score in pairs:
             if index < 0 or index >= len(self.chunks):
                 continue
@@ -456,6 +489,7 @@ class Retriever:
                     "similarity": round(float(score), 4),
                     "text": chunk.text,
                     "characters": len(chunk.text),
+                    "is_paper": False,
                 }
             )
         return results

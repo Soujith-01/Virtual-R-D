@@ -28,6 +28,8 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from api import experiments as experiments_router  # noqa: E402
+from api import models as models_router  # noqa: E402
+from api import papers as papers_router  # noqa: E402
 from api import prediction as prediction_router  # noqa: E402
 from api import research as research_router  # noqa: E402
 from api.schemas import HealthResponse  # noqa: E402
@@ -115,8 +117,10 @@ app.add_middleware(
 )
 
 app.include_router(prediction_router.router)
+app.include_router(models_router.router)
 app.include_router(experiments_router.router)
 app.include_router(research_router.router)
+app.include_router(papers_router.router)
 
 
 @app.exception_handler(Exception)

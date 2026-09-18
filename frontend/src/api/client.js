@@ -51,10 +51,11 @@ const unwrap = (promise) => promise.then((response) => response.data)
 export const getHealth = () => unwrap(client.get('/health'))
 export const getDesignSpace = () => unwrap(client.get('/design-space'))
 export const getModelInfo = () => unwrap(client.get('/model-info'))
+export const getModelStatus = () => unwrap(client.get('/models/status'))
 
 export const predict = (payload) => unwrap(client.post('/predict', payload))
 export const generateExperiments = (payload) => unwrap(client.post('/generate-experiments', payload))
-export const simulate = (payload) => unwrap(client.post('/simulate', payload))
+export const simulate = (payload) => unwrap(client.post('/simulate', { ...payload, domain: payload.domain || 'reaction_yield' }))
 export const runResearch = (payload) => unwrap(client.post('/research', payload))
 
 export const searchKnowledge = (query, k = 4) =>
@@ -62,5 +63,29 @@ export const searchKnowledge = (query, k = 4) =>
 
 export const getHistory = (limit = 12) => unwrap(client.get('/history', { params: { limit } }))
 export const getRun = (runId) => unwrap(client.get(`/history/${runId}`))
+
+export const searchPapers = (query, limit = 10, domain = null) =>
+  unwrap(client.get('/papers/search', { params: { query, limit, domain } }))
+
+export const summarizePaper = (paper, researchObjective = null) =>
+  unwrap(
+    client.post('/papers/summarize', {
+      paper_id: paper.paper_id,
+      title: paper.title,
+      authors: paper.authors,
+      year: paper.year,
+      venue: paper.venue,
+      abstract: paper.abstract,
+      doi: paper.doi,
+      url: paper.url,
+      research_objective: researchObjective,
+    }),
+  )
+
+export const getLibraryPapers = () => unwrap(client.get('/papers/library'))
+
+export const saveLibraryPaper = (paper) => unwrap(client.post('/papers/library', paper))
+
+export const deleteLibraryPaper = (paperId) => unwrap(client.delete(`/papers/library/${paperId}`))
 
 export default client
