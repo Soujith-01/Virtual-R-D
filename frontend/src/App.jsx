@@ -18,7 +18,9 @@ import RunHistory from './components/RunHistory'
 import ManualWorkspace from './components/ManualWorkspace'
 import ResearchPapers from './components/ResearchPapers'
 import ApparatusSetup from './components/ApparatusSetup'
-import { Button, ErrorBanner, GlassCard } from './components/ui'
+import { LoginPage, RegisterPage } from './components/AuthPages'
+import AdminDashboard from './components/AdminDashboard'
+import { Button, ErrorBanner, GlassCard, Spinner } from './components/ui'
 
 /** Convert hyphenated domain id (react router style) to underscore (backend style) */
 const toBackendDomain = (domainId) => (domainId || 'reaction-yield').replace(/-/g, '_')
@@ -60,6 +62,9 @@ const getTargetUnitForDomain = (domainId) => {
 }
 
 const STEP_TO_PATH = {
+  login: '/login',
+  register: '/register',
+  admin: '/admin',
   landing: '/',
   papers: '/papers',
   choose: '/choose',
@@ -71,6 +76,9 @@ const STEP_TO_PATH = {
 }
 
 const PATH_TO_STEP = {
+  '/login': 'login',
+  '/register': 'register',
+  '/admin': 'admin',
   '/': 'landing',
   '/papers': 'papers',
   '/choose': 'choose',
@@ -82,13 +90,16 @@ const PATH_TO_STEP = {
 }
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   const getInitialStep = () => {
-    if (typeof window === 'undefined') return 'landing'
+    if (typeof window === 'undefined') return 'login'
     const path = window.location.pathname.replace(/\/$/, '') || '/'
-    return PATH_TO_STEP[path] || 'landing'
+    return PATH_TO_STEP[path] || 'login'
   }
 
-  // step order (ai mode): landing → choose → workspace → experiments → simulation → report
+  // step order (ai mode): login/register/admin or landing → choose → workspace → experiments → simulation → report
   const [step, _setStepState] = useState(getInitialStep)
   const [mode, setMode] = useState('ai')
 
@@ -102,17 +113,66 @@ export default function App() {
     }
   }, [])
 
+  // Check auth session on startup
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = api.getStoredAuthToken()
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
+
+      if (!token) {
+        setAuthLoading(false)
+        if (currentPath === '/register') {
+          setStep('register', false)
+        } else {
+          setStep('login', false)
+        }
+        return
+      }
+
+      try {
+        const user = await api.getCurrentUser()
+        if (user && user.status === 'approved') {
+          setCurrentUser(user)
+          if (currentPath === '/login' || currentPath === '/register') {
+            if (user.role === 'admin') {
+              setStep('admin', false)
+            } else {
+              setStep('landing', false)
+            }
+          } else {
+            const target = PATH_TO_STEP[currentPath] || (user.role === 'admin' ? 'admin' : 'landing')
+            setStep(target, false)
+          }
+        } else {
+          api.clearAuthToken()
+          setCurrentUser(null)
+          setStep('login', false)
+        }
+      } catch (err) {
+        api.clearAuthToken()
+        setCurrentUser(null)
+        setStep('login', false)
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+
+    initAuth()
+  }, [])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
-    const currentStep = PATH_TO_STEP[currentPath] || 'landing'
-    window.history.replaceState({ step: currentStep }, '', currentPath)
-
     const handlePopState = (event) => {
       const path = window.location.pathname.replace(/\/$/, '') || '/'
-      const targetStep = event.state?.step || PATH_TO_STEP[path] || 'landing'
-      _setStepState(targetStep)
+      const targetStep = event.state?.step || PATH_TO_STEP[path] || 'login'
+
+      // Protection check on back/forward
+      if (!api.getStoredAuthToken() && targetStep !== 'login' && targetStep !== 'register') {
+        _setStepState('login')
+      } else {
+        _setStepState(targetStep)
+      }
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -313,7 +373,29 @@ export default function App() {
     if (demoRef.current) later(() => setStep('report'), 1500)
   }
 
-  /* ------------------------------ navigation ------------------------------ */
+  /* ------------------------------ auth & navigation ------------------------------ */
+
+  const handleLoginSuccess = (data) => {
+    api.setAuthToken(data.access_token)
+    setCurrentUser(data.user)
+    if (data.user?.role === 'admin') {
+      setStep('admin')
+    } else {
+      setStep('landing')
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await api.logoutUser()
+    } catch {
+      // ignore
+    }
+    api.clearAuthToken()
+    setCurrentUser(null)
+    reset()
+    setStep('login')
+  }
 
   const reset = () => {
     clearDemoTimers()
@@ -341,6 +423,14 @@ export default function App() {
   }
 
   const navigate = (target) => {
+    if (!currentUser) {
+      setStep(target === 'register' ? 'register' : 'login')
+      return
+    }
+    if (target === 'admin') {
+      if (currentUser.role === 'admin') setStep('admin')
+      return
+    }
     if (target === 'landing') { reset(); return }
     if (target === 'choose') { setStep('choose'); return }
     setStep(target)
@@ -378,6 +468,63 @@ export default function App() {
   /* -------------------------------- render -------------------------------- */
 
   const renderStep = () => {
+    if (step === 'login') {
+      return (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToRegister={() => setStep('register')}
+        />
+      )
+    }
+
+    if (step === 'register') {
+      return (
+        <RegisterPage
+          onRegisterSuccess={() => {}}
+          onNavigateToLogin={() => setStep('login')}
+        />
+      )
+    }
+
+    // Protected routes: require authenticated user
+    if (!currentUser) {
+      return (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToRegister={() => setStep('register')}
+        />
+      )
+    }
+
+    if (step === 'admin') {
+      if (currentUser.role !== 'admin') {
+        // Non-admins cannot access /admin
+        return (
+          <div className="mx-auto max-w-[1500px] px-5 py-12">
+            <GlassCard strong className="p-8 text-center max-w-lg mx-auto border-rose-400/30">
+              <div className="text-3xl mb-3">⛔</div>
+              <h2 className="text-lg font-bold text-rose-200">Access Denied</h2>
+              <p className="mt-2 text-xs text-slate-400">
+                You do not have administrative privileges to view this section.
+              </p>
+              <div className="mt-5">
+                <Button onClick={() => setStep('landing')}>
+                  ← Return to R&amp;D Lab
+                </Button>
+              </div>
+            </GlassCard>
+          </div>
+        )
+      }
+
+      return (
+        <AdminDashboard
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onNavigateToApp={() => setStep('landing')}
+        />
+      )
+    }
     if (step === 'landing') {
       return (
         <Landing
@@ -604,6 +751,36 @@ export default function App() {
     )
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="lab-background" />
+        <div className="lab-grid" />
+        <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+          <Spinner className="!h-8 !w-8 border-cyan-400" />
+          <div className="text-xs tracking-wider uppercase font-semibold text-cyan-300">
+            Initializing NUCLEUS AI...
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'login' || step === 'register') {
+    return (
+      <div className="min-h-screen flex flex-col justify-between">
+        <div className="lab-background" />
+        <div className="lab-grid" />
+        <div className="flex-1 flex flex-col justify-center">
+          {renderStep()}
+        </div>
+        <footer className="mx-auto max-w-[1500px] w-full px-5 pb-8 pt-4 text-center text-[10px] text-slate-500">
+          Nucleus AI R&amp;D Lab · Secure Authentication &amp; Admin Approval System
+        </footer>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <div className="lab-background" />
@@ -616,6 +793,8 @@ export default function App() {
         selectedTemplate={selectedTemplate}
         onReset={reset}
         onNavigate={navigate}
+        currentUser={currentUser}
+        onLogout={handleLogout}
         onSwitchMode={(newMode) => {
           if (newMode === 'manual') startManual()
           else startAI()

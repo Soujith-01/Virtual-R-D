@@ -12,6 +12,35 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+const TOKEN_KEY = 'nucleus_token'
+
+export function setAuthToken(token) {
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token)
+    } else {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  }
+}
+
+export function getStoredAuthToken() {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function clearAuthToken() {
+  setAuthToken(null)
+}
+
+client.interceptors.request.use((config) => {
+  const token = getStoredAuthToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 /** Turn any axios failure into a message a researcher can act on. */
 function toFriendlyMessage(error) {
   if (error?.code === 'ECONNABORTED') {
@@ -87,5 +116,21 @@ export const getLibraryPapers = () => unwrap(client.get('/papers/library'))
 export const saveLibraryPaper = (paper) => unwrap(client.post('/papers/library', paper))
 
 export const deleteLibraryPaper = (paperId) => unwrap(client.delete(`/papers/library/${paperId}`))
+
+/* --------------------------------- auth ---------------------------------- */
+
+export const registerUser = (payload) => unwrap(client.post('/api/auth/register', payload))
+export const loginUser = (payload) => unwrap(client.post('/api/auth/login', payload))
+export const getCurrentUser = () => unwrap(client.get('/api/auth/me'))
+export const logoutUser = () => unwrap(client.post('/api/auth/logout'))
+
+/* -------------------------------- admin ---------------------------------- */
+
+export const getAdminUsers = (params = {}) => unwrap(client.get('/api/admin/users', { params }))
+export const approveUser = (userId) => unwrap(client.post(`/api/admin/users/${userId}/approve`))
+export const rejectUser = (userId) => unwrap(client.post(`/api/admin/users/${userId}/reject`))
+export const suspendUser = (userId) => unwrap(client.post(`/api/admin/users/${userId}/suspend`))
+export const reactivateUser = (userId) => unwrap(client.post(`/api/admin/users/${userId}/reactivate`))
+export const deleteUser = (userId) => unwrap(client.delete(`/api/admin/users/${userId}`))
 
 export default client

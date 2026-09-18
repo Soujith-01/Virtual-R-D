@@ -27,6 +27,8 @@ BACKEND_ROOT = Path(__file__).resolve().parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+from api import admin as admin_router  # noqa: E402
+from api import auth as auth_router  # noqa: E402
 from api import experiments as experiments_router  # noqa: E402
 from api import models as models_router  # noqa: E402
 from api import papers as papers_router  # noqa: E402
@@ -36,8 +38,10 @@ from api.schemas import HealthResponse  # noqa: E402
 from config import settings  # noqa: E402
 from db.store import run_store  # noqa: E402
 from rag.retriever import retriever  # noqa: E402
+from services.auth import hash_password  # noqa: E402
 from services.llm import llm_client  # noqa: E402
 from services.model_store import ModelNotTrainedError, model_store  # noqa: E402
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,6 +90,20 @@ async def lifespan(app: FastAPI):
         logger.warning("Model not available yet: %s", error)
 
     run_store.init()
+    # Seed initial administrator account if not existing
+    try:
+        admin_pwd_hash = hash_password(settings.admin_password)
+        seeded = run_store.seed_admin_if_needed(
+            email=settings.admin_email,
+            password_hash=admin_pwd_hash,
+            name=settings.admin_name,
+            organization=settings.admin_organization,
+        )
+        if seeded:
+            logger.info("Default administrator account initialized (%s)", settings.admin_email)
+    except Exception as error:  # noqa: BLE001
+        logger.warning("Could not seed default admin user: %s", error)
+
     threading.Thread(target=_warm_knowledge_base, name="rag-warmup", daemon=True).start()
 
     logger.info("Reasoning backend: %s", llm_client.info["note"])
@@ -116,6 +134,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router)
+app.include_router(admin_router.router)
 app.include_router(prediction_router.router)
 app.include_router(models_router.router)
 app.include_router(experiments_router.router)

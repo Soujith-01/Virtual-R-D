@@ -14,10 +14,22 @@ const STEPS = [
   { key: 'report', label: 'Research Report' },
 ]
 
-export default function Sidebar({ step, mode, health, selectedTemplate, onReset, onNavigate, onSwitchMode }) {
+export default function Sidebar({
+  step,
+  mode,
+  health,
+  selectedTemplate,
+  onReset,
+  onNavigate,
+  onSwitchMode,
+  currentUser,
+  onLogout,
+}) {
   const domain = selectedTemplate ? DOMAINS[selectedTemplate.id] : null
   const domainLabel = domain?.label || ''
   const domainIcon = domain?.icon || ''
+  const isAdmin = currentUser?.role === 'admin'
+
 
   return (
     <aside className="relative z-20 w-20 lg:w-72 shrink-0">
@@ -94,6 +106,32 @@ export default function Sidebar({ step, mode, health, selectedTemplate, onReset,
               </motion.div>
             )
           })}
+
+          {isAdmin && (
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="pt-2 border-t border-white/5"
+            >
+              <button
+                type="button"
+                id="sidebar-nav-admin"
+                onClick={() => onNavigate('admin')}
+                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                  step === 'admin'
+                    ? 'bg-amber-400/15 text-amber-200 border border-amber-400/30'
+                    : 'text-amber-300/80 hover:bg-amber-400/10 hover:text-amber-200'
+                }`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base">
+                  🛡️
+                </span>
+                {typeof window !== 'undefined' && window.innerWidth >= 1024 && (
+                  <span className="flex-1 text-left font-semibold">Admin Panel</span>
+                )}
+              </button>
+            </motion.div>
+          )}
         </AnimatePresence>
       </nav>
 
@@ -128,6 +166,48 @@ export default function Sidebar({ step, mode, health, selectedTemplate, onReset,
           </div>
         )}
       </div>
+
+      {/* ===== user identity & status ===== */}
+      {currentUser && (
+        <div className="hidden lg:block border-t border-white/5 px-5 py-4 space-y-3">
+          <div className="rounded-xl border border-white/10 bg-white/2 p-3">
+            <div className="flex items-center justify-between">
+              <span className="label-caps text-[10px] text-cyan-400/90 font-mono font-bold">
+                {currentUser.role === 'admin' ? 'ADMINISTRATOR' : 'RESEARCHER'}
+              </span>
+              <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-300">
+                <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                APPROVED
+              </span>
+            </div>
+            <div className="mt-1 font-semibold text-slate-100 text-xs truncate">
+              {currentUser.full_name}
+            </div>
+            {currentUser.organization && (
+              <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                {currentUser.organization}
+              </div>
+            )}
+            {currentUser.research_domain && (
+              <div className="text-[10px] text-cyan-300/80 truncate mt-0.5">
+                {currentUser.research_domain}
+              </div>
+            )}
+          </div>
+
+          {onLogout && (
+            <button
+              type="button"
+              id="btn-sidebar-logout"
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/3 px-3 py-2 text-xs text-rose-300/90 hover:bg-rose-500/10 hover:border-rose-400/30 transition"
+            >
+              <span>🚪</span>
+              <span>Logout</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ===== mode switch (mobile) ===== */}
       <div className="lg:hidden border-t border-white/5 px-3 py-3">

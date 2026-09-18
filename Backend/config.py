@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     search_grid_size: int = 900
     default_num_experiments: int = 5
 
+    # --- authentication & security --------------------------------------- #
+    jwt_secret_key: str = "nucleus-ai-secret-key-change-in-production-2026"
+    jwt_algorithm: str = "HS256"
+    jwt_expires_in_minutes: int = 60 * 24 * 7  # 7 days
+    admin_email: str = "admin@nucleus.ai"
+    admin_password: str = "AdminNucleus2026!"
+    admin_name: str = "Nucleus Administrator"
+    admin_organization: str = "Nucleus AI Core Operations"
+
     @property
     def cors_origin_list(self) -> List[str]:
         raw = (self.cors_origins or "").strip()

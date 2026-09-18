@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS research_papers (
     saved_at        TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_research_papers_saved_at ON research_papers (saved_at DESC);
+
+CREATE TABLE IF NOT EXISTS users (
+    id              TEXT PRIMARY KEY,
+    full_name       TEXT NOT NULL,
+    email           TEXT UNIQUE NOT NULL,
+    password_hash   TEXT NOT NULL,
+    organization    TEXT,
+    research_domain TEXT,
+    role            TEXT NOT NULL DEFAULT 'researcher',
+    status          TEXT NOT NULL DEFAULT 'pending',
+    created_at      TEXT NOT NULL,
+    approved_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
 """
 
 
@@ -295,5 +310,223 @@ class RunStore:
             logger.warning("Could not delete paper %s: %s", paper_id, error)
             return False
 
+    # ------------------------------------------------------------------ #
+    # users & authentication
+    # ------------------------------------------------------------------ #
+    def create_user(
+        self,
+        full_name: str,
+        email: str,
+        password_hash: str,
+        organization: str = "",
+        research_domain: str = "",
+        role: str = "researcher",
+        status: str = "pending",
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Insert a newly registered user."""
+        self.init()
+        uid = user_id or f"usr-{uuid.uuid4().hex[:10]}"
+        now = datetime.now(timezone.utc).isoformat()
+        approved_at = now if status == "approved" else None
+
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (
+                    id, full_name, email, password_hash, organization,
+                    research_domain, role, status, created_at, approved_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    uid,
+                    full_name.strip(),
+                    email.strip().lower(),
+                    password_hash,
+                    organization.strip() if organization else "",
+                    research_domain.strip() if research_domain else "",
+                    role,
+                    status,
+                    now,
+                    approved_at,
+                ),
+            )
+
+        return self.get_user_by_id(uid)
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Retrieve user row by normalized email."""
+        if not self.init():
+            return None
+        try:
+            with self._lock, self._connect() as connection:
+                row = connection.execute(
+                    "SELECT * FROM users WHERE email = ?",
+                    (email.strip().lower(),),
+                ).fetchone()
+            if not row:
+                return None
+            return dict(row)
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not query user by email: %s", error)
+            return None
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve user row by user ID."""
+        if not self.init():
+            return None
+        try:
+            with self._lock, self._connect() as connection:
+                row = connection.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (str(user_id),),
+                ).fetchone()
+            if not row:
+                return None
+            return dict(row)
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not query user by id: %s", error)
+            return None
+
+    def list_users(
+        self,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List users with optional status filter and text search."""
+        if not self.init():
+            return []
+        try:
+            query = "SELECT * FROM users"
+            params: list[Any] = []
+            conditions: list[str] = []
+
+            if status and status.lower() != "all":
+                conditions.append("status = ?")
+                params.append(status.lower())
+
+            if search and search.strip():
+                pattern = f"%{search.strip().lower()}%"
+                conditions.append("(LOWER(full_name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(organization) LIKE ?)")
+                params.extend([pattern, pattern, pattern])
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            query += " ORDER BY created_at DESC"
+
+            with self._lock, self._connect() as connection:
+                rows = connection.execute(query, params).fetchall()
+
+            users = []
+            for row in rows:
+                item = dict(row)
+                item.pop("password_hash", None)  # Never leak password hash to callers
+                users.append(item)
+            return users
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not list users: %s", error)
+            return []
+
+    def update_user_status(self, user_id: str, new_status: str) -> Optional[Dict[str, Any]]:
+        """Update account status (e.g. approved, rejected, suspended)."""
+        if not self.init():
+            return None
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            with self._lock, self._connect() as connection:
+                if new_status == "approved":
+                    connection.execute(
+                        "UPDATE users SET status = ?, approved_at = ? WHERE id = ?",
+                        (new_status, now, str(user_id)),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE users SET status = ? WHERE id = ?",
+                        (new_status, str(user_id)),
+                    )
+            user = self.get_user_by_id(user_id)
+            if user:
+                user.pop("password_hash", None)
+            return user
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not update user status: %s", error)
+            return None
+
+    def delete_user(self, user_id: str) -> bool:
+        """Permanently delete a user account."""
+        if not self.init():
+            return False
+        try:
+            with self._lock, self._connect() as connection:
+                cursor = connection.execute(
+                    "DELETE FROM users WHERE id = ?",
+                    (str(user_id),),
+                )
+                return cursor.rowcount > 0
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not delete user %s: %s", user_id, error)
+            return False
+
+    def count_users_by_status(self) -> Dict[str, int]:
+        """Count users grouped by status."""
+        counts = {
+            "total": 0,
+            "pending": 0,
+            "approved": 0,
+            "rejected": 0,
+            "suspended": 0,
+        }
+        if not self.init():
+            return counts
+        try:
+            with self._lock, self._connect() as connection:
+                rows = connection.execute(
+                    "SELECT status, COUNT(*) as cnt FROM users GROUP BY status"
+                ).fetchall()
+                total = 0
+                for row in rows:
+                    st = row["status"]
+                    cnt = row["cnt"]
+                    total += cnt
+                    if st in counts:
+                        counts[st] = cnt
+                counts["total"] = total
+            return counts
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not count users: %s", error)
+            return counts
+
+    def seed_admin_if_needed(
+        self,
+        email: str,
+        password_hash: str,
+        name: str = "Nucleus Administrator",
+        organization: str = "Nucleus AI Core",
+    ) -> bool:
+        """Seed the initial administrator account if no admin exists with this email."""
+        if not self.init():
+            return False
+        existing = self.get_user_by_email(email)
+        if existing:
+            return False
+        try:
+            self.create_user(
+                full_name=name,
+                email=email,
+                password_hash=password_hash,
+                organization=organization,
+                research_domain="Administration",
+                role="admin",
+                status="approved",
+                user_id="usr-admin-001",
+            )
+            logger.info("Initial admin user seeded: %s", email)
+            return True
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Could not seed admin user: %s", error)
+            return False
+
 
 run_store = RunStore()
+

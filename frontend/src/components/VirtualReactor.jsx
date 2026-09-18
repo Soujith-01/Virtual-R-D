@@ -4,6 +4,7 @@ import { Button, GlassCard, Meter, Pill, SectionTitle } from './ui'
 import { num, paramValue, riskTone, yieldTone, getStageLabels, getStageIcon, getPredictionKey, getTargetLabel, getTargetUnit } from '../lib/format'
 import { DOMAINS } from '../lib/constants'
 import { ACCENT_COLORS } from '../lib/constants'
+import LiveActivityPanel from './LiveActivityPanel'
 
 const STAGE_ORDER_MAP = {
   'reaction-yield': ['INITIALIZING', 'HEATING', 'STABILIZING', 'REACTION', 'ANALYZING', 'COMPLETE'],
@@ -193,11 +194,22 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
     : simulation.observed_yield ||
     simulatedValue
 
-  // Determine liquid level based on progress
-  const liquidLevel =
-    stage === 'ANALYZING' || stage === 'COMPLETE' || stage?.includes('ANALYZE') || stage?.includes('COMPLETE')
-      ? 46
-      : Math.min(58, (frame.progress / 18) * 58)
+  // Synchronized visual liquid fill level (percentage)
+  const liquidHeightPercent = useMemo(() => {
+    if (stage === 'INITIALIZING') {
+      return Math.min(55, Math.max(15, 15 + (frame.stage_progress || 0) * 0.4))
+    }
+    if (stage === 'HEATING' || stage === 'STABILIZING') {
+      return 55
+    }
+    if (stage === 'REACTION') {
+      return 58
+    }
+    if (stage === 'ANALYZING' || stage === 'COMPLETE') {
+      return 48
+    }
+    return Math.min(58, Math.max(20, (frame.progress / 30) * 58))
+  }, [stage, frame.stage_progress, frame.progress])
 
   // Get gauge values based on domain
   const gaugeConfigs = getGaugeConfigs(domainId, frame, experiment, simulation)
@@ -223,121 +235,170 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
         />
       </GlassCard>
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        {/* ------------------------------ vessel / visualization ------------------------------ */}
-        <GlassCard strong className="relative overflow-hidden p-6">
-          <div className="flex items-start justify-between">
-            <div className="text-xs text-slate-400">Experiment status</div>
-            <span className="mono text-[10px] text-slate-500">
-              {num(frame.t_ms || 0, 0)} / {num(simulation.total_duration_ms || 13000, 0)} ms elapsed
-            </span>
-          </div>
+      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        {/* ------------------------------ LEFT: vessel / visual animation & controls ------------------------------ */}
+        <div className="space-y-4">
+          <GlassCard strong className="relative overflow-hidden p-6">
+            <div className="flex items-start justify-between">
+              <div className="text-xs text-slate-400">Reactor Core Status</div>
+              <span className="mono text-[10px] text-slate-500">
+                {num(frame.t_ms || 0, 0)} / {num(simulation.total_duration_ms || 13000, 0)} ms elapsed
+              </span>
+            </div>
 
-          {/* Main visualization area */}
-          <div className="relative mx-auto mt-6 w-full max-w-[300px]">
-            {/* background glow */}
-            <div
-              className={`absolute -inset-3 rounded-[999px] border-2 ${STAGE_RING[stage] || 'border-cyan-300/40'} blur-[1px]`}
-              style={{ transition: 'border-color 500ms ease' }}
-            />
+            {/* Main visualization area */}
+            <div className="relative mx-auto mt-6 w-full max-w-[310px]">
+              {/* background halo glow */}
+              <div
+                className={`absolute -inset-3 rounded-[999px] border-2 ${STAGE_RING[stage] || 'border-cyan-300/40'} blur-[2px] transition-colors duration-500`}
+              />
 
-            {/* Main vessel/container */}
-            <div className="relative h-[280px] w-full max-w-[280px] overflow-hidden rounded-t-2xl rounded-b-[999px] border-2 border-cyan-200/25 bg-lab-900/60 backdrop-blur">
-              {/* scan line */}
-              {playing && (
-                <div className="absolute inset-x-0 top-0 h-12 animate-lab-scan bg-gradient-to-b from-transparent via-cyan-300/12 to-transparent" />
-              )}
+              {/* Main vessel / container */}
+              <div className="relative h-[300px] w-full max-w-[290px] mx-auto overflow-hidden rounded-t-2xl rounded-b-[999px] border-2 border-cyan-200/30 bg-lab-900/70 backdrop-blur">
+                {/* scan line */}
+                {playing && (
+                  <div className="absolute inset-x-0 top-0 h-14 animate-lab-scan bg-gradient-to-b from-transparent via-cyan-300/15 to-transparent z-25 pointer-events-none" />
+                )}
 
-              {/* Content area based on domain */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  {/* Stage icon */}
-                  <div className="text-6xl mb-2">
-                    {getStageIcon(stage, domainId)}
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mt-3 w-48 mx-auto">
-                    <Meter
-                      value={frame.progress}
-                      max={100}
-                      tone="cyan"
-                      height="h-2"
-                      glow
-                    />
-                  </div>
-                  <div className="mt-2 text-xs text-slate-400">
-                    {num(frame.progress, 0)}% complete
+                {/* Top feed inlet nozzle */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-9 h-2.5 bg-slate-800 border-b border-x border-cyan-400/40 rounded-b-md z-20" />
+
+                {/* 1. Synchronized Reagent stream pouring when adding components */}
+                {playing && (stage === 'INITIALIZING' || frame.progress < 22) && (
+                  <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-1.5 h-36 bg-gradient-to-b from-cyan-300 via-sky-400 to-cyan-500 rounded-full animate-pulse z-15 shadow-[0_0_10px_rgba(56,226,245,0.8)]" />
+                )}
+
+                {/* 2. Central agitator shaft & rotating impeller during mixing/reaction */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-[190px] bg-gradient-to-b from-slate-400 to-slate-600 z-12 opacity-75">
+                  <div
+                    className={`absolute bottom-3 left-1/2 -translate-x-1/2 w-16 h-3 rounded-full border border-cyan-300/60 bg-gradient-to-r from-cyan-400/50 via-sky-300/80 to-cyan-400/50 shadow-[0_0_8px_rgba(56,226,245,0.5)] ${
+                      playing && (stage === 'HEATING' || stage === 'REACTION' || stage === 'STABILIZING')
+                        ? 'animate-spin'
+                        : ''
+                    }`}
+                    style={{ animationDuration: speed === 1 ? '0.6s' : speed === 2 ? '0.3s' : '0.15s' }}
+                  />
+                </div>
+
+                {/* 3. Rising liquid pool with dynamic gradient */}
+                <motion.div
+                  className={`absolute inset-x-0 bottom-0 bg-gradient-to-t ${STAGE_LIQUID[stage] || 'from-cyan-500/70 to-sky-400/50'} backdrop-blur-sm z-5`}
+                  animate={{ height: `${liquidHeightPercent}%` }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                >
+                  {/* Liquid surface wave meniscus */}
+                  <div className="absolute top-0 inset-x-0 h-2 bg-white/30 rounded-full blur-[1px] animate-pulse" />
+
+                  {/* Reaction bubbles */}
+                  {(stage === 'REACTION' || stage === 'HEATING') && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <span className="absolute bottom-2 left-1/4 w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDuration: '0.8s' }} />
+                      <span className="absolute bottom-6 left-2/4 w-1.5 h-1.5 rounded-full bg-cyan-200/90 animate-ping" style={{ animationDuration: '1.2s' }} />
+                      <span className="absolute bottom-3 left-3/4 w-2.5 h-2.5 rounded-full bg-white/50 animate-bounce" style={{ animationDuration: '0.9s' }} />
+                      <span className="absolute bottom-8 left-1/3 w-1.5 h-1.5 rounded-full bg-cyan-100/80 animate-ping" style={{ animationDuration: '1.4s' }} />
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* 4. Thermal heating jacket glow during HEATING */}
+                {(stage === 'HEATING' || stage === 'STABILIZING') && (
+                  <div className="absolute inset-0 rounded-t-2xl rounded-b-[999px] border-2 border-amber-400/70 shadow-[inset_0_0_30px_rgba(251,191,36,0.3)] animate-pulse pointer-events-none z-15" />
+                )}
+
+                {/* 5. Sampling needle dipping during ANALYZING */}
+                {stage === 'ANALYZING' && (
+                  <motion.div
+                    initial={{ y: -60 }}
+                    animate={{ y: 0 }}
+                    className="absolute top-2 right-1/4 w-1 h-36 bg-emerald-400/90 rounded-b z-20 shadow-[0_0_10px_rgba(52,211,153,0.9)]"
+                  >
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-emerald-200 animate-ping" />
+                  </motion.div>
+                )}
+
+                {/* 6. Complete emerald aura when finished */}
+                {stage === 'COMPLETE' && (
+                  <div className="absolute inset-0 rounded-t-2xl rounded-b-[999px] border-2 border-emerald-400/80 shadow-[inset_0_0_30px_rgba(52,211,153,0.35)] pointer-events-none z-15" />
+                )}
+
+                {/* Floating stage badge & icon overlay */}
+                <div className="absolute inset-x-0 bottom-6 flex flex-col items-center justify-center pointer-events-none z-20">
+                  <div className="text-4xl drop-shadow-md mb-1">{getStageIcon(stage, domainId)}</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-100 bg-slate-950/80 px-3 py-1 rounded-full border border-white/10 backdrop-blur shadow-md">
+                    {stageLabels.find((s) => s.key === stage)?.label ?? stage}
                   </div>
                 </div>
               </div>
+
+              {/* Vessel base stand */}
+              <div className="mx-auto h-3 w-full max-w-[310px] -translate-x-[15px] rounded-b-xl border border-cyan-200/20 bg-lab-800/70" />
             </div>
 
-            {/* base */}
-            <div className="mx-auto h-3 w-full max-w-[300px] -translate-x-[15px] rounded-b-xl border border-cyan-200/20 bg-lab-800/70" />
-          </div>
-
-          {/* simulated progress */}
-          <div className="mt-6">
-            <div className="flex items-baseline justify-between">
-              <span className="label-caps text-slate-500">
-                Simulated {targetLabel}
-              </span>
-              <span className="mono text-sm text-cyan-200">
-                {num(displaySimulatedValue, 1)}
-                <span className="ml-1 text-[10px] text-slate-500">
-                  {targetUnit} vs. predicted {num(simulation[predictionKey] || simulation.predicted_yield || simulation.predicted_target || 0, 1)}{targetUnit}
+            {/* simulated progress */}
+            <div className="mt-6">
+              <div className="flex items-baseline justify-between">
+                <span className="label-caps text-slate-500">
+                  Simulated {targetLabel}
                 </span>
-              </span>
+                <span className="mono text-sm text-cyan-200">
+                  {num(displaySimulatedValue, 1)}
+                  <span className="ml-1 text-[10px] text-slate-500">
+                    {targetUnit} vs. predicted {num(simulation[predictionKey] || simulation.predicted_yield || simulation.predicted_target || 0, 1)}{targetUnit}
+                  </span>
+                </span>
+              </div>
+              <Meter
+                className="mt-2"
+                value={displaySimulatedValue}
+                max={Math.max(simulation[predictionKey] || simulation.predicted_yield || simulation.predicted_target || 1, 1)}
+                tone={yieldTone(displaySimulatedValue)}
+                height="h-2.5"
+                glow
+              />
             </div>
-            <Meter
-              className="mt-2"
-              value={displaySimulatedValue}
-              max={Math.max(simulation[predictionKey] || simulation.predicted_yield || simulation.predicted_target || 1, 1)}
-              tone={yieldTone(displaySimulatedValue)}
-              height="h-2.5"
-              glow
-            />
-          </div>
 
-          {/* controls */}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <Button className="!py-2 text-xs" onClick={() => setPlaying((value) => !value)}>
-              {playing ? '❙❙ Pause' : '▶ Play'}
-            </Button>
-            <Button
-              variant="ghost"
-              className="!py-2 text-xs"
-              onClick={() => {
-                setIndex(0)
-                completedRef.current = false
-                setPlaying(true)
-              }}
-            >
-              ↺ Restart
-            </Button>
-            <div className="flex gap-1">
-              {[1, 2, 4].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setSpeed(value)}
-                  className={`mono rounded-lg px-2.5 py-1.5 text-[11px] transition ${
-                    speed === value ? 'bg-cyan-400/20 text-cyan-100' : 'text-slate-400 hover:bg-white/5'
-                  }`}
+            {/* controls */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-4">
+              <div className="flex items-center gap-2">
+                <Button className="!py-2 text-xs" onClick={() => setPlaying((value) => !value)}>
+                  {playing ? '❙❙ Pause' : '▶ Play'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="!py-2 text-xs"
+                  onClick={() => {
+                    setIndex(0)
+                    completedRef.current = false
+                    setPlaying(true)
+                  }}
                 >
-                  {value}×
-                </button>
-              ))}
-            </div>
-            <Button variant="subtle" className="!py-2 text-xs" onClick={onExit}>
-              Skip to report →
-            </Button>
-          </div>
-        </GlassCard>
+                  ↺ Restart
+                </Button>
+                <div className="flex gap-1">
+                  {[1, 2, 4].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setSpeed(value)}
+                      className={`mono rounded-lg px-2.5 py-1.5 text-[11px] transition ${
+                        speed === value ? 'bg-cyan-400/20 text-cyan-100' : 'text-slate-400 hover:bg-white/5'
+                      }`}
+                    >
+                      {value}×
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        {/* ------------------------------ telemetry ------------------------------ */}
-        <div className="space-y-4">
+              <Button variant="subtle" className="!py-2 text-xs" onClick={onExit}>
+                Skip to report →
+              </Button>
+            </div>
+          </GlassCard>
+
+          {/* Telemetry Dials */}
           <GlassCard className="p-5">
+            <div className="label-caps mb-3 text-slate-500">Real-Time Sensor Telemetry</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {gaugeConfigs.map((gauge) => (
                 <Gauge
@@ -352,8 +413,21 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
               ))}
             </div>
           </GlassCard>
+        </div>
 
-          {/* stage timeline */}
+        {/* ------------------------------ RIGHT: Live Experiment Activity Panel ------------------------------ */}
+        <div className="space-y-4">
+          <LiveActivityPanel
+            stage={stage}
+            stageProgress={frame.stage_progress || 0}
+            overallProgress={frame.progress || 0}
+            experiment={experiment}
+            simulation={simulation}
+            domainId={domainId}
+            onSkipToReport={onExit}
+          />
+
+          {/* Stage timeline with description */}
           <GlassCard className="p-5">
             <div className="label-caps mb-3 text-slate-500">Experiment Stages</div>
             <ol className="space-y-2">
@@ -361,7 +435,7 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
                 const position = stageOrder.indexOf(stageEntry.stage)
                 const done = position < stageIndex
                 const active = position === stageIndex
-                const stageInfo = stageLabels.find(s => s.key === stageEntry.stage)
+                const stageInfo = stageLabels.find((s) => s.key === stageEntry.stage)
                 return (
                   <li
                     key={stageEntry.stage}
@@ -369,8 +443,8 @@ export default function VirtualReactor({ simulation, onComplete, onExit, title =
                       active
                         ? 'border-cyan-300/45 bg-cyan-400/10'
                         : done
-                          ? 'border-emerald-400/20 bg-emerald-400/5'
-                          : 'border-white/5'
+                        ? 'border-emerald-400/20 bg-emerald-400/5'
+                        : 'border-white/5'
                     }`}
                   >
                     <span className="text-sm">{getStageIcon(stageEntry.stage, domainId)}</span>
