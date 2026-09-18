@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import * as api from './api/client'
@@ -17,7 +17,9 @@ import PipelineOverlay from './components/PipelineOverlay'
 import RunHistory from './components/RunHistory'
 import ManualWorkspace from './components/ManualWorkspace'
 import ResearchPapers from './components/ResearchPapers'
-import ApparatusSetup from './components/ApparatusSetup'
+import ApparatusSetup, { DOMAIN_APPARATUS } from './components/ApparatusSetup'
+import { getLiveExperimentState } from './components/LiveActivityPanel'
+import ExperimentCopilot from './components/ExperimentCopilot'
 import { LoginPage, RegisterPage } from './components/AuthPages'
 import AdminDashboard from './components/AdminDashboard'
 import { Button, ErrorBanner, GlassCard, Spinner } from './components/ui'
@@ -206,6 +208,101 @@ export default function App() {
 
   const demoTimers = useRef([])
   const demoRef = useRef(false)
+
+  /* ---------------------- Experiment Copilot Context ---------------------- */
+
+  const currentDomainId = selectedTemplate?.domain || 'reaction-yield'
+
+  const currentCandidate = useMemo(() => {
+    if (!research?.candidates?.length) return null
+    if (selectedId) {
+      return research.candidates.find((c) => c.id === selectedId) || research.candidates[0]
+    }
+    return research.candidates[0]
+  }, [research, selectedId])
+
+  const currentExperiment = useMemo(() => {
+    return (
+      selectedExperimentForApparatus?.experiment ||
+      currentCandidate?.experiment ||
+      currentCandidate ||
+      selectedTemplate?.params ||
+      {}
+    )
+  }, [selectedExperimentForApparatus, currentCandidate, selectedTemplate])
+
+  const liveSimState = useMemo(() => {
+    if (!simulation) {
+      return { stage: 'STANDBY', current_action: 'Reaction system ready.' }
+    }
+    try {
+      const derived = getLiveExperimentState({
+        stage: simulation.stages?.[activeStage]?.name || 'REACTION',
+        stageProgress: 50,
+        overallProgress: Math.min(100, Math.round(((activeStage + 1) / (simulation.stages?.length || 1)) * 100)),
+        experiment: currentExperiment,
+        domainId: currentDomainId,
+        simulation,
+      })
+      return {
+        stage: simulation.stages?.[activeStage]?.name || 'RUNNING',
+        current_action: derived.currentAction,
+        detail: derived.detail,
+        mixture_state: derived.mixtureState,
+        contents: derived.contents,
+        overall_progress: derived.overallProgress,
+      }
+    } catch {
+      return { stage: 'RUNNING', current_action: 'Monitoring active experiment reaction.' }
+    }
+  }, [simulation, activeStage, currentExperiment, currentDomainId])
+
+  const currentApparatusList = useMemo(() => {
+    return DOMAIN_APPARATUS[currentDomainId] || DOMAIN_APPARATUS['reaction-yield'] || []
+  }, [currentDomainId])
+
+  const copilotContext = useMemo(() => {
+    return {
+      page: step,
+      mode,
+      domain: toBackendDomain(currentDomainId),
+      objective: question,
+      experiment: currentExperiment,
+      selected_experiment: currentExperiment,
+      candidate_experiments: research?.candidates || [],
+      selected_candidate: currentCandidate,
+      predicted_result: currentCandidate
+        ? {
+            predicted_yield: currentCandidate.predicted_yield,
+            uncertainty_std: currentCandidate.uncertainty_std,
+            confidence: currentCandidate.confidence,
+          }
+        : null,
+      simulation: liveSimState,
+      simulation_stage: liveSimState,
+      current_apparatus: currentApparatusList,
+      papers: activeResearchPapers || [],
+      research_papers: activeResearchPapers || [],
+      research_report: research
+        ? {
+            recommended: research.recommended,
+            metrics: research.metrics,
+            findings: research.findings,
+          }
+        : null,
+    }
+  }, [
+    step,
+    mode,
+    currentDomainId,
+    question,
+    currentExperiment,
+    research,
+    currentCandidate,
+    liveSimState,
+    currentApparatusList,
+    activeResearchPapers,
+  ])
 
   /* ------------------------------ bootstrap ------------------------------ */
 
@@ -842,6 +939,7 @@ export default function App() {
       </div>
 
       <PipelineOverlay visible={overlayVisible} activeStage={activeStage} question={question} />
+      <ExperimentCopilot context={copilotContext} />
     </div>
   )
 }

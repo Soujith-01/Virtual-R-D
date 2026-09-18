@@ -29,6 +29,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from api import admin as admin_router  # noqa: E402
 from api import auth as auth_router  # noqa: E402
+from api import copilot as copilot_router  # noqa: E402
 from api import experiments as experiments_router  # noqa: E402
 from api import models as models_router  # noqa: E402
 from api import papers as papers_router  # noqa: E402
@@ -136,6 +137,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
+app.include_router(copilot_router.router)
 app.include_router(prediction_router.router)
 app.include_router(models_router.router)
 app.include_router(experiments_router.router)

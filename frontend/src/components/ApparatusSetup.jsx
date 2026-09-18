@@ -7,7 +7,7 @@ import { getPredictionKey, getTargetLabel, getTargetUnit } from '../lib/format'
 /**
  * Standard authentic laboratory apparatus specifications by domain.
  */
-const DOMAIN_APPARATUS = {
+export const DOMAIN_APPARATUS = {
   'reaction-yield': [
     {
       id: 'autoclave-reactor',

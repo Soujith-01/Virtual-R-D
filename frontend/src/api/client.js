@@ -133,4 +133,9 @@ export const suspendUser = (userId) => unwrap(client.post(`/api/admin/users/${us
 export const reactivateUser = (userId) => unwrap(client.post(`/api/admin/users/${userId}/reactivate`))
 export const deleteUser = (userId) => unwrap(client.delete(`/api/admin/users/${userId}`))
 
+/* ------------------------------- copilot --------------------------------- */
+
+export const sendExperimentChatMessage = ({ question, context = {}, history = [] }) =>
+  unwrap(client.post('/api/experiment-chat', { question, context, history }))
+
 export default client
